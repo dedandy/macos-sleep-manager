@@ -136,9 +136,27 @@ echo ""
 # Step 5: Avvia sleepwatcher
 print_step "Avvio servizio sleepwatcher..."
 
-# Verifica se è già in esecuzione
+# Prima di tutto, killa eventuali istanze manuali in esecuzione
+MANUAL_PROCESSES=$(pgrep -f "sleepwatcher" | grep -v "grep" | wc -l | tr -d ' ')
+if [ "$MANUAL_PROCESSES" -gt 0 ]; then
+  print_warning "Trovate $MANUAL_PROCESSES istanze di sleepwatcher in esecuzione"
+  print_step "Chiusura di tutte le istanze esistenti..."
+  pkill -9 sleepwatcher
+  sleep 2
+  print_success "Istanze manuali chiuse"
+fi
+
+# Rimuovi eventuali LaunchAgents duplicati
+if [ -f "$HOME/Library/LaunchAgents/com.bernhard-baehr.sleepwatcher.plist" ]; then
+  print_warning "Trovato LaunchAgent duplicato, rimozione..."
+  launchctl unload "$HOME/Library/LaunchAgents/com.bernhard-baehr.sleepwatcher.plist" 2>/dev/null
+  rm "$HOME/Library/LaunchAgents/com.bernhard-baehr.sleepwatcher.plist"
+  print_success "LaunchAgent duplicato rimosso"
+fi
+
+# Verifica se è già in esecuzione tramite brew services
 if brew services list | grep sleepwatcher | grep -q "started"; then
-  print_warning "sleepwatcher già in esecuzione, riavvio..."
+  print_warning "sleepwatcher già in esecuzione, riavvio per applicare nuova configurazione..."
   brew services restart sleepwatcher
 else
   brew services start sleepwatcher
@@ -146,12 +164,20 @@ fi
 
 sleep 2
 
-# Verifica che sia partito
-if brew services list | grep sleepwatcher | grep -q "started"; then
-  print_success "sleepwatcher avviato correttamente"
+# Verifica che sia partito correttamente E che ce ne sia solo UNO
+RUNNING_COUNT=$(pgrep -f "sleepwatcher" | wc -l | tr -d ' ')
+if [ "$RUNNING_COUNT" -eq 1 ]; then
+  print_success "sleepwatcher avviato correttamente (1 istanza attiva)"
+  pgrep -fl sleepwatcher >> /dev/null
+elif [ "$RUNNING_COUNT" -gt 1 ]; then
+  print_error "ATTENZIONE: Rilevate $RUNNING_COUNT istanze di sleepwatcher!"
+  echo "Questo causerà doppia esecuzione degli script."
+  echo "Esegui: pkill sleepwatcher && brew services restart sleepwatcher"
+  exit 1
 else
   print_error "Errore nell'avvio di sleepwatcher"
   echo "Prova manualmente: brew services start sleepwatcher"
+  exit 1
 fi
 echo ""
 
@@ -211,6 +237,8 @@ echo "   ~/.sleeplog    → Visualizzatore log"
 echo ""
 echo "🔧 Servizio:"
 echo "   sleepwatcher   → Avviato e configurato"
+RUNNING_COUNT=$(pgrep -f "sleepwatcher" | wc -l | tr -d ' ')
+echo "   Istanze attive: $RUNNING_COUNT (deve essere 1)"
 echo ""
 echo "📊 Comandi disponibili:"
 echo "   sleeplog       → Visualizza log"
@@ -225,6 +253,10 @@ echo "🚀 Prossimi passi:"
 echo "   1. Ricarica la shell: source $SHELL_CONFIG"
 echo "   2. Testa chiudendo e riaprendo lo schermo (a batteria)"
 echo "   3. Controlla i log: sleeplog"
+echo ""
+echo "🔍 Verifica installazione:"
+echo "   pgrep -fl sleepwatcher  → Deve mostrare 1 solo processo"
+echo "   brew services list      → sleepwatcher deve essere 'started'"
 echo ""
 echo "📖 Per personalizzare:"
 echo "   - Modifica soglia CPU: nano ~/.sleep (riga ~13)"

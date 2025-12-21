@@ -394,6 +394,80 @@ sleeplog -h
 
 ## 🐛 Risoluzione problemi
 
+### Comandi di diagnostica rapida
+
+Prima di tutto, verifica lo stato del sistema:
+
+```bash
+# Verifica quante istanze di sleepwatcher sono attive (DEVE essere 1)
+pgrep -fl sleepwatcher
+
+# Verifica stato del servizio
+brew services list | grep sleepwatcher
+
+# Verifica che gli script esistano e siano eseguibili
+ls -la ~/.sleep ~/.wakeup ~/.sleeplog
+
+# Controlla gli ultimi log
+sleeplog recent 20
+```
+
+### Problema: Doppia esecuzione degli script
+
+**Sintomo:** Nel log vedi righe duplicate tipo:
+```
+==== SLEEP 2025-12-21 19:31:02 ====
+==== SLEEP 2025-12-21 19:31:02 ====
+```
+
+**Diagnosi:**
+```bash
+# Conta quante istanze di sleepwatcher sono attive
+pgrep -fl sleepwatcher
+# Se vedi 2 o più righe → HAI IL PROBLEMA
+```
+
+**Causa:** Hai avviato sleepwatcher manualmente E come servizio Homebrew.
+
+**Soluzione:**
+```bash
+# 1. Killa TUTTE le istanze
+pkill sleepwatcher
+
+# 2. Aspetta che si chiudano
+sleep 2
+
+# 3. Riavvia SOLO tramite Homebrew
+brew services restart sleepwatcher
+
+# 4. Verifica che ce ne sia UNA SOLA
+pgrep -fl sleepwatcher
+# Output atteso: una sola riga tipo:
+# 12345 /opt/homebrew/opt/sleepwatcher/sbin/sleepwatcher -V -s ...
+
+# 5. Se il problema persiste, rimuovi LaunchAgents duplicati
+rm ~/Library/LaunchAgents/com.bernhard-baehr.sleepwatcher.plist 2>/dev/null
+launchctl unload ~/Library/LaunchAgents/com.bernhard-baehr.sleepwatcher.plist 2>/dev/null
+brew services restart sleepwatcher
+```
+
+### Problema: Errore AppleScript "Indice non valido"
+
+**Sintomo:** Nel log vedi:
+```
+execution error: System Events ha trovato un errore: Impossibile ottenere every process whose background only = false. Indice non valido. (-1719)
+```
+
+**Causa:** AppleScript viene eseguito troppo velocemente durante il sleep/wake.
+
+**Soluzione:** Lo script moderno (v2) ha già un sistema di retry integrato. Assicurati di usare la versione aggiornata:
+```bash
+# Verifica versione (deve contenere "RETRY" e "MAX_RETRIES")
+grep -A 5 "RETRY=0" ~/.sleep
+```
+
+Se non vedi queste righe, aggiorna lo script dalla repo.
+
 ### Le app non vengono chiuse
 
 **Verifica 1:** Sei a batteria?
@@ -477,33 +551,106 @@ chmod +x ~/.sleep ~/.wakeup ~/.sleeplog
 - Diminuisci `CPU_THRESHOLD` (es. da `1.0` a `0.5`)
 - Verifica che le app consumino effettivamente CPU
 
-### Debugging
+### Debugging avanzato
 
-**Abilita output verboso:**
+**Test manuale degli script:**
 ```bash
-# Aggiungi all'inizio di ~/.sleep
-set -x  # Debug mode
-
-# Esegui manualmente
-~/.sleep
-
-# Disabilita dopo test
-# (rimuovi la riga set -x)
-```
-
-**Testa manualmente gli script:**
-```bash
-# Simula sleep
+# Simula sleep manualmente (ATTENZIONE: chiuderà app!)
 ~/.sleep
 
 # Controlla cosa è stato chiuso
 cat ~/.sleep_apps_killed
 
+# Controlla il log
+tail -20 ~/.sleep_log
+
 # Simula wake
 ~/.wakeup
 
-# Controlla log
-sleeplog recent 50
+# Verifica cosa è stato riaperto
+sleeplog recent 10
+```
+
+**Abilita output verboso (debug mode):**
+```bash
+# Apri lo script sleep
+nano ~/.sleep
+
+# Aggiungi questa riga SUBITO dopo #!/bin/bash
+set -x  # Debug mode
+
+# Salva e esci (Ctrl+X, Y, Enter)
+
+# Ora esegui manualmente
+~/.sleep 2>&1 | tee /tmp/sleep_debug.log
+
+# Analizza l'output
+cat /tmp/sleep_debug.log
+
+# RICORDA: Rimuovi "set -x" dopo il debug!
+```
+
+**Monitoraggio in tempo reale:**
+```bash
+# In un terminale, monitora il log in tempo reale
+tail -f ~/.sleep_log
+
+# In un altro terminale, chiudi lo schermo
+# Vedrai l'attività in tempo reale
+```
+
+**Verifica completa del sistema:**
+```bash
+#!/bin/bash
+echo "=== DIAGNOSTICA SLEEP MANAGER ==="
+echo ""
+echo "1. Processi sleepwatcher attivi:"
+pgrep -fl sleepwatcher
+echo ""
+echo "2. Servizio Homebrew:"
+brew services list | grep sleepwatcher
+echo ""
+echo "3. Script installati:"
+ls -lh ~/.sleep ~/.wakeup ~/.sleeplog
+echo ""
+echo "4. File di log:"
+ls -lh ~/.sleep_log ~/.sleep_apps ~/.sleep_apps_killed 2>/dev/null || echo "File di log non ancora creati"
+echo ""
+echo "5. Ultimi eventi:"
+tail -10 ~/.sleep_log 2>/dev/null || echo "Log ancora vuoto"
+echo ""
+echo "6. Stato batteria:"
+pmset -g batt | grep -E "Battery|AC Power"
+```
+
+Copia questo script, salvalo come `~/diagnose_sleep.sh`, rendilo eseguibile con `chmod +x ~/diagnose_sleep.sh` ed eseguilo per una diagnostica completa.
+
+### Reset completo
+
+### Reset completo
+
+Se qualcosa è andato storto e vuoi ricominciare da zero:
+
+```bash
+# 1. Ferma e rimuovi tutto
+brew services stop sleepwatcher
+pkill sleepwatcher
+rm ~/Library/LaunchAgents/com.bernhard-baehr.sleepwatcher.plist 2>/dev/null
+launchctl unload ~/Library/LaunchAgents/homebrew.mxcl.sleepwatcher.plist 2>/dev/null
+
+# 2. Rimuovi gli script (BACKUP prima se hai personalizzazioni!)
+rm ~/.sleep ~/.wakeup ~/.sleeplog
+
+# 3. Pulisci i log (OPZIONALE - perdi lo storico!)
+rm ~/.sleep_log ~/.sleep_apps ~/.sleep_apps_killed
+
+# 4. Reinstalla da zero
+cd ~/path/to/macos-sleep-manager
+./install.sh
+
+# 5. Verifica
+pgrep -fl sleepwatcher  # Deve mostrare 1 solo processo
+brew services list | grep sleepwatcher  # Deve essere "started"
 ```
 
 ## 📝 Note
