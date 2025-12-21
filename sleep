@@ -1,0 +1,113 @@
+#!/bin/bash
+
+# Solo se a batteria
+pmset -g batt | grep -q "Battery Power" || exit 0
+
+LOG="$HOME/.sleep_log"
+APPS="$HOME/.sleep_apps"
+APPS_KILLED="$HOME/.sleep_apps_killed"
+
+# Soglia CPU (%) - app oltre questa soglia vengono chiuse
+CPU_THRESHOLD=0.5
+
+# Lista app CRITICHE da NON chiudere mai
+declare -a SYSTEM_APPS=(
+  "Finder"
+  "Dock"
+  "SystemUIServer"
+  "WindowServer"
+  "loginwindow"
+  "System Settings"
+  "System Preferences"
+  "Calendar"
+  "Reminders"
+  "Messages"
+  #"Mail"
+  "Safari"
+  "Notes"
+  #"Terminal"
+  "iTerm"
+  #"Activity Monitor"
+)
+
+echo "==== SLEEP $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG"
+
+# Crea/pulisci file
+> "$APPS_KILLED"
+
+# Salva TUTTE le app grafiche aperte
+osascript <<'EOF' > "$APPS" 2>>"$LOG"
+tell application "System Events"
+  set appList to name of (processes where background only is false)
+end tell
+
+set output to ""
+repeat with appName in appList
+  set output to output & appName & linefeed
+end repeat
+return output
+EOF
+
+if [ $? -ne 0 ]; then
+  echo "ERRORE: impossibile ottenere lista app" >> "$LOG"
+  exit 1
+fi
+
+# Funzione per verificare se un'app è critica
+is_system_app() {
+  local APP="$1"
+  for sys_app in "${SYSTEM_APPS[@]}"; do
+    if [ "$APP" = "$sys_app" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Contatori
+CHECKED=0
+KILLED=0
+KEPT=0
+SKIPPED=0
+
+# Leggi tutte le app aperte e valuta ciascuna
+while IFS= read -r APP; do
+  [ -z "$APP" ] && continue
+  
+  # Salta app di sistema critiche
+  if is_system_app "$APP"; then
+    SKIPPED=$((SKIPPED + 1))
+    continue
+  fi
+  
+  CHECKED=$((CHECKED + 1))
+  
+  # Calcola CPU dell'app
+  CPU=$(ps -Ao %cpu,comm | grep -F "$APP" | awk '{sum += $1} END {printf "%.1f", sum}')
+  CPU=${CPU:-0}
+  
+  # Decide se killare
+  if awk -v cpu="$CPU" -v thr="$CPU_THRESHOLD" 'BEGIN {exit !(cpu > thr)}'; then
+    echo "⚡ Chiudo $APP (CPU: ${CPU}%)" >> "$LOG"
+    
+    # Chiusura gentile
+    osascript -e "tell application \"$APP\" to quit" 2>/dev/null
+    sleep 1
+    
+    # Se ancora attivo, forza
+    if pgrep -x "$APP" > /dev/null 2>&1; then
+      pkill -9 -f "$APP"
+      echo "   ⚠️  Kill forzato" >> "$LOG"
+    fi
+    
+    echo "$APP" >> "$APPS_KILLED"
+    KILLED=$((KILLED + 1))
+  else
+    echo "✓ Mantengo $APP (CPU: ${CPU}%)" >> "$LOG"
+    KEPT=$((KEPT + 1))
+  fi
+  
+done < "$APPS"
+
+echo "📊 Controllate: $CHECKED | Chiuse: $KILLED | Mantenute: $KEPT | Saltate (sistema): $SKIPPED" >> "$LOG"
+echo "" >> "$LOG"

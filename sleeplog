@@ -1,0 +1,187 @@
+#!/bin/bash
+
+LOG="$HOME/.sleep_log"
+
+# Colori
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Verifica esistenza log
+if [ ! -f "$LOG" ]; then
+  echo -e "${RED}❌ Log non trovato: $LOG${NC}"
+  echo "Esegui almeno un ciclo sleep/wake per creare il log."
+  exit 1
+fi
+
+# Funzione: ultime sessioni
+show_recent() {
+  local LINES=${1:-50}
+  echo -e "${CYAN}📜 Ultime $LINES righe del log:${NC}"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  tail -n "$LINES" "$LOG"
+}
+
+# Funzione: statistiche
+show_stats() {
+  echo -e "${MAGENTA}📊 STATISTICHE GLOBALI${NC}"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  
+  # Conta sessioni
+  local SLEEP_SESSIONS=$(grep -c "==== SLEEP" "$LOG")
+  local WAKE_SESSIONS=$(grep -c "==== WAKE" "$LOG")
+  
+  echo -e "${GREEN}Sessioni Sleep:${NC} $SLEEP_SESSIONS"
+  echo -e "${GREEN}Sessioni Wake:${NC} $WAKE_SESSIONS"
+  echo ""
+  
+  # App più chiuse
+  echo -e "${YELLOW}🔥 Top 10 app più chiuse:${NC}"
+  grep "⚡ Chiudo" "$LOG" | \
+    awk '{print $4}' | \
+    sort | uniq -c | sort -rn | head -10 | \
+    awk '{printf "   %3d volte: %s\n", $1, $2}'
+  
+  echo ""
+  
+  # App più riaperte
+  echo -e "${YELLOW}🔄 Top 10 app più riaperte:${NC}"
+  grep "🔄 Riapro" "$LOG" | \
+    awk '{print $4}' | \
+    sort | uniq -c | sort -rn | head -10 | \
+    awk '{printf "   %3d volte: %s\n", $1, $2}'
+  
+  echo ""
+  
+  # Media app chiuse per sessione
+  local TOTAL_KILLED=$(grep -c "⚡ Chiudo" "$LOG")
+  if [ $SLEEP_SESSIONS -gt 0 ]; then
+    local AVG=$(echo "scale=1; $TOTAL_KILLED / $SLEEP_SESSIONS" | bc)
+    echo -e "${BLUE}📈 Media app chiuse per sessione:${NC} $AVG"
+  fi
+}
+
+# Funzione: attività oggi
+show_today() {
+  local TODAY=$(date '+%Y-%m-%d')
+  echo -e "${CYAN}📅 Attività di oggi ($TODAY):${NC}"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  
+  if grep -q "$TODAY" "$LOG"; then
+    grep "$TODAY" "$LOG"
+  else
+    echo -e "${YELLOW}Nessuna attività registrata oggi.${NC}"
+  fi
+}
+
+# Funzione: cerca app specifica
+search_app() {
+  local APP="$1"
+  echo -e "${CYAN}🔍 Storia di: $APP${NC}"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  
+  if grep -q "$APP" "$LOG"; then
+    grep "$APP" "$LOG" | grep -E "(Chiudo|Riapro|Mantengo)"
+    echo ""
+    
+    local KILLED=$(grep -c "Chiudo $APP" "$LOG")
+    local KEPT=$(grep -c "Mantengo $APP" "$LOG")
+    local REOPENED=$(grep -c "Riapro $APP" "$LOG")
+    
+    echo -e "${GREEN}Chiusa:${NC} $KILLED volte"
+    echo -e "${GREEN}Mantenuta:${NC} $KEPT volte"
+    echo -e "${GREEN}Riaperta:${NC} $REOPENED volte"
+  else
+    echo -e "${YELLOW}Nessun record trovato per '$APP'${NC}"
+  fi
+}
+
+# Funzione: ultime sessioni
+show_sessions() {
+  local NUM=${1:-3}
+  echo -e "${CYAN}🔄 Ultime $NUM sessioni Sleep/Wake:${NC}"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  
+  # Trova le ultime N sessioni
+  grep -A 50 "==== SLEEP\|==== WAKE" "$LOG" | tail -n $((NUM * 50))
+}
+
+# Funzione: pulisci log vecchi
+clean_log() {
+  echo -e "${YELLOW}⚠️  Vuoi davvero pulire il log? (mantiene ultime 100 righe) [y/N]${NC}"
+  read -r response
+  if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    tail -100 "$LOG" > "$LOG.tmp"
+    mv "$LOG.tmp" "$LOG"
+    echo -e "${GREEN}✓ Log pulito! Mantenute ultime 100 righe.${NC}"
+  else
+    echo "Operazione annullata."
+  fi
+}
+
+# Funzione: help
+show_help() {
+  echo -e "${CYAN}🛠️  SLEEPLOG - Visualizzatore log Sleep/Wake${NC}"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+  echo "Uso: sleeplog [comando] [opzioni]"
+  echo ""
+  echo "Comandi disponibili:"
+  echo -e "  ${GREEN}(nessuno)${NC}         Mostra ultime 50 righe"
+  echo -e "  ${GREEN}recent [N]${NC}        Mostra ultime N righe (default: 50)"
+  echo -e "  ${GREEN}stats${NC}             Statistiche globali"
+  echo -e "  ${GREEN}today${NC}             Attività di oggi"
+  echo -e "  ${GREEN}sessions [N]${NC}      Ultime N sessioni (default: 3)"
+  echo -e "  ${GREEN}app <nome>${NC}        Storia di un'app specifica"
+  echo -e "  ${GREEN}clean${NC}             Pulisci log vecchi"
+  echo -e "  ${GREEN}full${NC}              Visualizza log completo"
+  echo -e "  ${GREEN}help${NC}              Mostra questo help"
+  echo ""
+  echo "Esempi:"
+  echo "  sleeplog"
+  echo "  sleeplog stats"
+  echo "  sleeplog app Chrome"
+  echo "  sleeplog today"
+  echo "  sleeplog recent 100"
+}
+
+# Parsing comandi
+case "${1:-recent}" in
+  recent)
+    show_recent "${2:-50}"
+    ;;
+  stats)
+    show_stats
+    ;;
+  today)
+    show_today
+    ;;
+  sessions)
+    show_sessions "${2:-3}"
+    ;;
+  app)
+    if [ -z "$2" ]; then
+      echo -e "${RED}❌ Specifica il nome dell'app: sleeplog app Chrome${NC}"
+      exit 1
+    fi
+    search_app "$2"
+    ;;
+  clean)
+    clean_log
+    ;;
+  full)
+    less "$LOG"
+    ;;
+  help|--help|-h)
+    show_help
+    ;;
+  *)
+    echo -e "${RED}❌ Comando sconosciuto: $1${NC}"
+    echo "Usa 'sleeplog help' per vedere i comandi disponibili."
+    exit 1
+    ;;
+esac
