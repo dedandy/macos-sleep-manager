@@ -8,35 +8,48 @@ APPS="$HOME/.sleep_apps"
 APPS_KILLED="$HOME/.sleep_apps_killed"
 
 # Soglia CPU (%) - app oltre questa soglia vengono chiuse
-CPU_THRESHOLD=0.5
+CPU_THRESHOLD=1.0
 
-# Lista app CRITICHE da NON chiudere mai
-declare -a SYSTEM_APPS=(
+# === CONFIGURAZIONE PROTEZIONE APP ===
+
+# App di sistema CRITICHE - NON TOCCARE (causerebbero crash/problemi)
+declare -a CRITICAL_APPS=(
   "Finder"
   "Dock"
   "SystemUIServer"
   "WindowServer"
   "loginwindow"
-  "System Settings"
-  "System Preferences"
-  "Calendar"
-  "Reminders"
-  "Messages"
-  #"Mail"
-  "Safari"
-  "Notes"
-  #"Terminal"
-  "iTerm"
-  #"Activity Monitor"
 )
+
+# App che vuoi SEMPRE proteggere dal kill (personalizza a piacere)
+declare -a PROTECTED_APPS=(
+  # "Terminal"
+  "iTerm"
+  # "Activity Monitor"
+  # "Safari"           # decommentare per proteggere
+  # "Mail"             # decommentare per proteggere
+  # "Messages"         # decommentare per proteggere
+  # "Calendar"         # decommentare per proteggere
+  # "Notes"            # decommentare per proteggere
+  # "1Password"        # esempio: password manager
+  # "Little Snitch"    # esempio: firewall
+)
+
+# Combina le due liste
+declare -a SYSTEM_APPS=("${CRITICAL_APPS[@]}" "${PROTECTED_APPS[@]}")
 
 echo "==== SLEEP $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG"
 
 # Crea/pulisci file
 > "$APPS_KILLED"
 
-# Salva TUTTE le app grafiche aperte
-osascript <<'EOF' > "$APPS" 2>>"$LOG"
+# Salva TUTTE le app grafiche aperte (con retry per affidabilità)
+RETRY=0
+MAX_RETRIES=3
+SUCCESS=false
+
+while [ $RETRY -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
+  osascript <<'EOF' > "$APPS" 2>/dev/null
 tell application "System Events"
   set appList to name of (processes where background only is false)
 end tell
@@ -47,9 +60,17 @@ repeat with appName in appList
 end repeat
 return output
 EOF
+  
+  if [ $? -eq 0 ] && [ -s "$APPS" ]; then
+    SUCCESS=true
+  else
+    RETRY=$((RETRY + 1))
+    [ $RETRY -lt $MAX_RETRIES ] && sleep 0.5
+  fi
+done
 
-if [ $? -ne 0 ]; then
-  echo "ERRORE: impossibile ottenere lista app" >> "$LOG"
+if [ "$SUCCESS" = false ]; then
+  echo "ERRORE: impossibile ottenere lista app dopo $MAX_RETRIES tentativi" >> "$LOG"
   exit 1
 fi
 
