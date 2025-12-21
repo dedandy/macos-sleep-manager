@@ -1,121 +1,78 @@
 #!/bin/bash
 
-# Solo se a batteria
-pmset -g batt | grep -q "Battery Power" || exit 0
-
 LOG="$HOME/.sleep_log"
-APPS="$HOME/.sleep_apps"
 APPS_KILLED="$HOME/.sleep_apps_killed"
 
-# Soglia CPU (%) - app oltre questa soglia vengono chiuse
-CPU_THRESHOLD=1.0
+echo "==== WAKE $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG"
 
-# === CONFIGURAZIONE PROTEZIONE APP ===
+# Delay intelligente: aspetta che il sistema sia pronto
+sleep 3
 
-# App di sistema CRITICHE - NON TOCCARE (causerebbero crash/problemi)
-declare -a CRITICAL_APPS=(
-  "Finder"
-  "Dock"
-  "SystemUIServer"
-  "WindowServer"
-  "loginwindow"
-)
-
-# App che vuoi SEMPRE proteggere dal kill (personalizza a piacere)
-declare -a PROTECTED_APPS=(
-  "Terminal"
-  "iTerm"
-  "Activity Monitor"
-  # "Safari"           # decommentare per proteggere
-  # "Mail"             # decommentare per proteggere
-  # "Messages"         # decommentare per proteggere
-  # "Calendar"         # decommentare per proteggere
-  # "Notes"            # decommentare per proteggere
-  # "1Password"        # esempio: password manager
-  # "Little Snitch"    # esempio: firewall
-)
-
-# Combina le due liste
-declare -a SYSTEM_APPS=("${CRITICAL_APPS[@]}" "${PROTECTED_APPS[@]}")
-
-echo "==== SLEEP $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG"
-
-# Crea/pulisci file
-> "$APPS_KILLED"
-
-# Salva TUTTE le app grafiche aperte
-osascript <<'EOF' > "$APPS" 2>>"$LOG"
-tell application "System Events"
-  set appList to name of (processes where background only is false)
-end tell
-
-set output to ""
-repeat with appName in appList
-  set output to output & appName & linefeed
-end repeat
-return output
-EOF
-
-if [ $? -ne 0 ]; then
-  echo "ERRORE: impossibile ottenere lista app" >> "$LOG"
-  exit 1
+# Verifica che il file esista e non sia vuoto
+if [ ! -f "$APPS_KILLED" ] || [ ! -s "$APPS_KILLED" ]; then
+  echo "ℹ️  Nessuna app da riaprire" >> "$LOG"
+  echo "" >> "$LOG"
+  exit 0
 fi
 
-# Funzione per verificare se un'app è critica
-is_system_app() {
-  local APP="$1"
-  for sys_app in "${SYSTEM_APPS[@]}"; do
-    if [ "$APP" = "$sys_app" ]; then
-      return 0
-    fi
-  done
-  return 1
-}
+# Log delle app da riaprire
+echo "📋 App da riaprire: $(wc -l < "$APPS_KILLED" | tr -d ' ')" >> "$LOG"
 
 # Contatori
-CHECKED=0
-KILLED=0
-KEPT=0
+REOPENED=0
 SKIPPED=0
+FAILED=0
 
-# Leggi tutte le app aperte e valuta ciascuna
+# Leggi le app da riaprire (solo quelle effettivamente chiuse)
 while IFS= read -r APP; do
+  # Salta righe vuote
   [ -z "$APP" ] && continue
   
-  # Salta app di sistema critiche
-  if is_system_app "$APP"; then
+  # Evita app di sistema
+  case "$APP" in
+    "Finder"|"System Settings"|"Calendar"|"Reminders"|"Spotlight") 
+      SKIPPED=$((SKIPPED + 1))
+      continue 
+      ;;
+  esac
+
+  # Verifica se già aperta
+  if pgrep -x "$APP" > /dev/null 2>&1; then
+    echo "⏭️  $APP già aperta" >> "$LOG"
     SKIPPED=$((SKIPPED + 1))
     continue
   fi
+
+  # Prova a riaprire con metodo robusto
+  echo "🔄 Riapro $APP" >> "$LOG"
   
-  CHECKED=$((CHECKED + 1))
-  
-  # Calcola CPU dell'app
-  CPU=$(ps -Ao %cpu,comm | grep -F "$APP" | awk '{sum += $1} END {printf "%.1f", sum}')
-  CPU=${CPU:-0}
-  
-  # Decide se killare
-  if awk -v cpu="$CPU" -v thr="$CPU_THRESHOLD" 'BEGIN {exit !(cpu > thr)}'; then
-    echo "⚡ Chiudo $APP (CPU: ${CPU}%)" >> "$LOG"
-    
-    # Chiusura gentile
-    osascript -e "tell application \"$APP\" to quit" 2>/dev/null
-    sleep 1
-    
-    # Se ancora attivo, forza
-    if pgrep -x "$APP" > /dev/null 2>&1; then
-      pkill -9 -f "$APP"
-      echo "   ⚠️  Kill forzato" >> "$LOG"
-    fi
-    
-    echo "$APP" >> "$APPS_KILLED"
-    KILLED=$((KILLED + 1))
+  # Metodo 1: open -a (funziona per la maggior parte delle app)
+  if open -a "$APP" 2>/dev/null; then
+    REOPENED=$((REOPENED + 1))
+    sleep 0.5
   else
-    echo "✓ Mantengo $APP (CPU: ${CPU}%)" >> "$LOG"
-    KEPT=$((KEPT + 1))
+    # Metodo 2: Cerca il path completo in /Applications
+    APP_PATH=$(find /Applications ~/Applications -name "${APP}.app" -maxdepth 2 -type d 2>/dev/null | head -1)
+    
+    if [ -n "$APP_PATH" ]; then
+      echo "   📁 Trovato path: $APP_PATH" >> "$LOG"
+      if open "$APP_PATH" 2>/dev/null; then
+        REOPENED=$((REOPENED + 1))
+        sleep 0.5
+      else
+        echo "   ❌ Errore nell'apertura di $APP" >> "$LOG"
+        FAILED=$((FAILED + 1))
+      fi
+    else
+      echo "   ❌ App non trovata: $APP" >> "$LOG"
+      FAILED=$((FAILED + 1))
+    fi
   fi
   
-done < "$APPS"
+done < "$APPS_KILLED"
 
-echo "📊 Controllate: $CHECKED | Chiuse: $KILLED | Mantenute: $KEPT | Saltate (sistema): $SKIPPED" >> "$LOG"
+echo "📊 Riaperte: $REOPENED | Saltate: $SKIPPED | Fallite: $FAILED | Wake completato" >> "$LOG"
 echo "" >> "$LOG"
+
+# Opzionale: pulisci il file dopo il wake
+# rm -f "$APPS_KILLED"
