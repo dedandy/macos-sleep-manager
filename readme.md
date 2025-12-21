@@ -31,7 +31,31 @@ Sistema intelligente di gestione energetica per macOS che chiude automaticamente
 
 ## 📦 Installazione
 
-### 1. Installa sleepwatcher
+### Installazione automatica (consigliata) 🚀
+
+```bash
+# Clona il repository
+git clone <tuo-repo-privato>
+cd macos-sleep-manager
+
+# Esegui lo script di installazione
+chmod +x install.sh
+./install.sh
+```
+
+Lo script si occuperà di:
+- ✅ Verificare/installare sleepwatcher
+- ✅ Copiare gli script nella home
+- ✅ Configurare i permessi
+- ✅ Aggiungere l'alias sleeplog
+- ✅ Avviare il servizio sleepwatcher
+- ✅ Permettere personalizzazione interattiva
+
+### Installazione manuale
+
+Se preferisci installare manualmente o vuoi capire meglio il processo:
+
+#### 1. Installa sleepwatcher
 
 [sleepwatcher](https://www.bernhard-baehr.de/) è un daemon che monitora gli eventi di sleep/wake del Mac ed esegue script personalizzati.
 
@@ -39,17 +63,15 @@ Sistema intelligente di gestione energetica per macOS che chiude automaticamente
 brew install sleepwatcher
 ```
 
-### 2. Clona/scarica gli script
+#### 2. Clona/scarica gli script
 
 ```bash
 # Clona questo repository
 git clone <tuo-repo-privato>
-cd <nome-repo>
-
-# Oppure scarica i file manualmente
+cd macos-sleep-manager
 ```
 
-### 3. Copia gli script nella home
+#### 3. Copia gli script nella home
 
 ```bash
 cp sleep ~/.sleep
@@ -61,14 +83,14 @@ chmod +x ~/.wakeup
 chmod +x ~/.sleeplog
 ```
 
-### 4. Configura l'alias per sleeplog
+#### 4. Configura l'alias per sleeplog
 
 ```bash
 echo 'alias sleeplog="~/.sleeplog"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-### 5. Configura sleepwatcher come servizio
+#### 5. Configura sleepwatcher come servizio
 
 sleepwatcher cerca automaticamente i file `~/.sleep` e `~/.wakeup` e li esegue agli eventi corrispondenti.
 
@@ -88,7 +110,7 @@ brew services list | grep sleepwatcher
 - Funziona come servizio di sistema (daemon)
 - Si avvia automaticamente al login
 
-### 6. Testa il sistema
+#### 6. Testa il sistema
 
 ```bash
 # Simula sleep (chiudi lo schermo)
