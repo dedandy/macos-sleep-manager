@@ -10,8 +10,8 @@ NC='\033[0m'
 
 echo -e "${CYAN}"
 echo "╔════════════════════════════════════════╗"
-echo "║   macOS Sleep Manager Installer v4.0  ║"
-echo "║        Professional Edition           ║"
+echo "║   macOS Sleep Manager Installer v4.1  ║"
+echo "║      Smart Shell Detection Edition    ║"
 echo "╚════════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -36,7 +36,6 @@ if [ ! -f "$CONF_PATH" ]; then
     echo "Creato nuovo file di configurazione in: $CONF_PATH"
 else
     echo "File di configurazione esistente trovato. Lo mantengo."
-    # Qui potremmo fare un merge intelligente, ma per sicurezza non sovrascriviamo
 fi
 
 # 3. Auto-Discovery App
@@ -52,10 +51,7 @@ for app in "${KNOWN_APPS[@]}"; do
     fi
 done
 
-echo -e "Rilevate ${YELLOW}$COUNT${NC} app pesanti ($DETECTED)."
-echo "Aggiorno la configurazione..."
-
-# Aggiorna SOLO la riga HEAVY_APPS nel file .conf
+echo -e "Rilevate ${YELLOW}$COUNT${NC} app pesanti."
 sed -i.bak "s/^HEAVY_APPS=.*/HEAVY_APPS=\"$DETECTED\"/" "$CONF_PATH"
 rm "$CONF_PATH.bak" 2>/dev/null
 echo -e "${GREEN}✓ Configurazione aggiornata.${NC}"
@@ -74,7 +70,7 @@ echo -e "\n${BLUE}[STEP 5] Ottimizzazione Energetica...${NC}"
 echo "Scegli modalità:"
 echo " [1] Standard (Apple Default)"
 echo " [2] Ultra Saver (Ibernazione immediata)"
-echo " [3] Hybrid Smart (Consigliata v4.0) ⭐"
+echo " [3] Hybrid Smart (Consigliata) ⭐"
 read -r mode
 
 echo "Richiesta password sudo..."
@@ -84,16 +80,48 @@ case $mode in
   *) sudo pmset -a hibernatemode 3; sudo pmset -a standbydelayhigh 86400 ;;
 esac
 
-# 6. Alias
-SHELL_CONFIG=""
-[ -f "$HOME/.zshrc" ] && SHELL_CONFIG="$HOME/.zshrc"
-[ -f "$HOME/.bashrc" ] && SHELL_CONFIG="$HOME/.bashrc"
-if [ -n "$SHELL_CONFIG" ]; then
-  if ! grep -q "alias sleeplog=" "$SHELL_CONFIG"; then
-    echo -e "\nalias sleeplog=\"~/.sleeplog\"" >> "$SHELL_CONFIG"
-  fi
+# 6. Alias e Shell Detection (SMART)
+echo -e "\n${BLUE}[STEP 6] Configurazione Shell...${NC}"
+
+# Rileva la shell dell'utente corrente
+CURRENT_SHELL=$(basename "$SHELL")
+RC_FILE=""
+
+if [[ "$CURRENT_SHELL" == "zsh" ]]; then
+    RC_FILE="$HOME/.zshrc"
+    echo "Shell rilevata: ZSH (File: .zshrc)"
+elif [[ "$CURRENT_SHELL" == "bash" ]]; then
+    if [ -f "$HOME/.bash_profile" ]; then
+        RC_FILE="$HOME/.bash_profile"
+    else
+        RC_FILE="$HOME/.bashrc"
+    fi
+    echo "Shell rilevata: BASH (File: $(basename "$RC_FILE"))"
+else
+    # Fallback se usa Fish o altro
+    echo "Shell non standard ($CURRENT_SHELL). Salto configurazione alias."
 fi
 
-echo -e "\n${GREEN}✓ INSTALLAZIONE v4.0 COMPLETATA!${NC}"
-echo "File config: $CONF_PATH"
-echo "Esegui 'source $SHELL_CONFIG' per finire."
+# Applica l'alias se abbiamo trovato il file
+if [ -n "$RC_FILE" ]; then
+    # Crea il file se non esiste
+    touch "$RC_FILE"
+    
+    if ! grep -q "alias sleeplog=" "$RC_FILE"; then
+        echo -e "\n# macOS Sleep Manager" >> "$RC_FILE"
+        echo "alias sleeplog=\"~/.sleeplog\"" >> "$RC_FILE"
+        echo -e "${GREEN}✓ Alias 'sleeplog' aggiunto a $RC_FILE${NC}"
+    else
+        echo -e "${GREEN}✓ Alias già presente in $RC_FILE${NC}"
+    fi
+fi
+
+echo -e "\n${GREEN}✓ INSTALLAZIONE COMPLETATA!${NC}"
+
+# Istruzione finale dinamica
+if [ -n "$RC_FILE" ]; then
+    echo -e "Per attivare subito i comandi, esegui:"
+    echo -e "${YELLOW}source $RC_FILE${NC}"
+else
+    echo "Riavvia il terminale per completare."
+fi
