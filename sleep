@@ -1,138 +1,72 @@
 #!/bin/bash
 
-# Solo se a batteria
-pmset -g batt | grep -q "Battery Power" || exit 0
-
-LOG="$HOME/.sleep_log"
-APPS="$HOME/.sleep_apps"
-APPS_KILLED="$HOME/.sleep_apps_killed"
-
-# Soglia CPU (%) - app oltre questa soglia vengono chiuse
+# Configurazione
+LOG_FILE="$HOME/.sleeplog_history"
+APPS_KILLED="$HOME/.sleep_killed_apps"
 CPU_THRESHOLD=1.0
+WHITELIST="Finder|System Events|loginwindow|WindowServer|syslogd|UserEventAgent|kextd|fseventsd|distnoted"
 
-# === CONFIGURAZIONE PROTEZIONE APP ===
+# QUESTA LISTA VIENE AGGIORNATA DA INSTALL.SH
+# App che devono essere chiuse SEMPRE per garantire l'Eco-Wake
+ALWAYS_KILL_LIST=""
 
-# App di sistema CRITICHE - NON TOCCARE (causerebbero crash/problemi)
-declare -a CRITICAL_APPS=(
-  "Finder"
-  "Dock"
-  "SystemUIServer"
-  "WindowServer"
-  "loginwindow"
-)
-
-# App che vuoi SEMPRE proteggere dal kill (personalizza a piacere)
-declare -a PROTECTED_APPS=(
-  "Terminal"
-  "iTerm"
-  "Activity Monitor"
-  # "Safari"           # decommentare per proteggere
-  # "Mail"             # decommentare per proteggere
-  # "Messages"         # decommentare per proteggere
-  # "Calendar"         # decommentare per proteggere
-  # "Notes"            # decommentare per proteggere
-  # "1Password"        # esempio: password manager
-  # "Little Snitch"    # esempio: firewall
-)
-
-# Combina le due liste
-declare -a SYSTEM_APPS=("${CRITICAL_APPS[@]}" "${PROTECTED_APPS[@]}")
-
-echo "==== SLEEP $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG"
-
-# Crea/pulisci file
-> "$APPS_KILLED"
-
-# Salva TUTTE le app grafiche aperte (con retry per affidabilità)
-RETRY=0
-MAX_RETRIES=3
-SUCCESS=false
-
-while [ $RETRY -lt $MAX_RETRIES ] && [ "$SUCCESS" = false ]; do
-  osascript <<'EOF' > "$APPS" 2>/dev/null
-tell application "System Events"
-  set appList to name of (processes where background only is false)
-end tell
-
-set output to ""
-repeat with appName in appList
-  set output to output & appName & linefeed
-end repeat
-return output
-EOF
-  
-  if [ $? -eq 0 ] && [ -s "$APPS" ]; then
-    SUCCESS=true
-  else
-    RETRY=$((RETRY + 1))
-    [ $RETRY -lt $MAX_RETRIES ] && sleep 0.5
-  fi
-done
-
-if [ "$SUCCESS" = false ]; then
-  echo "ERRORE: impossibile ottenere lista app dopo $MAX_RETRIES tentativi" >> "$LOG"
-  exit 1
-fi
-
-# Funzione per verificare se un'app è critica
-is_system_app() {
-  local APP="$1"
-  for sys_app in "${SYSTEM_APPS[@]}"; do
-    if [ "$APP" = "$sys_app" ]; then
-      return 0
-    fi
-  done
-  return 1
+# Funzione di logging
+log_message() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
 }
 
-# Contatori
-CHECKED=0
-KILLED=0
-KEPT=0
-SKIPPED=0
+# Inizio Log
+log_message "------------------------------------------------"
+log_message "[SLEEP] 🌙 Inizio procedura di sospensione..."
 
-# Leggi tutte le app aperte e valuta ciascuna
-while IFS= read -r APP; do
-  [ -z "$APP" ] && continue
-  
-  # Salta app di sistema critiche
-  if is_system_app "$APP"; then
-    SKIPPED=$((SKIPPED + 1))
-    continue
-  fi
-  
-  CHECKED=$((CHECKED + 1))
-  
-  # Calcola CPU dell'app
-  CPU=$(ps -Ao %cpu,comm | grep -F "$APP" | awk '{sum += $1} END {printf "%.1f", sum}')
-  CPU=${CPU:-0}
-  
-  # Decide se killare
-  if awk -v cpu="$CPU" -v thr="$CPU_THRESHOLD" 'BEGIN {exit !(cpu > thr)}'; then
-    echo "⚡ Chiudo $APP (CPU: ${CPU}%)" >> "$LOG"
+# Pulizia file temporaneo
+echo "" > "$APPS_KILLED"
+
+# Ottieni livello batteria per il log
+BATT_PCT=$(pmset -g batt | grep -o "[0-9]*%" | head -1)
+log_message "🔋 Batteria al $BATT_PCT. Analisi processi..."
+
+# Ciclo sui processi utente
+# Esclude processi di root e di sistema per sicurezza
+ps -r -o %cpu,comm | grep -v "0.0" | grep -v "PROCESS" | while read -r cpu comm; do
     
-    # Chiusura gentile
-    osascript -e "tell application \"$APP\" to quit" 2>/dev/null
-    sleep 1
+    # Rimuovi path completo (es. /Applications/Safari.app/Contents/MacOS/Safari -> Safari)
+    app_name=$(basename "$comm")
     
-    # Se ancora attivo, forza
-    if pgrep -x "$APP" > /dev/null 2>&1; then
-      pkill -9 -f "$APP"
-      echo "   ⚠️  Kill forzato" >> "$LOG"
+    # Salta processi in whitelist
+    if echo "$app_name" | grep -qE "$WHITELIST"; then
+        continue
     fi
-    
-    echo "$APP" >> "$APPS_KILLED"
-    KILLED=$((KILLED + 1))
-  else
-    echo "✓ Mantengo $APP (CPU: ${CPU}%)" >> "$LOG"
-    KEPT=$((KEPT + 1))
-  fi
-  
-done < "$APPS"
 
-echo "📊 Controllate: $CHECKED | Chiuse: $KILLED | Mantenute: $KEPT | Saltate (sistema): $SKIPPED" >> "$LOG"
-echo "" >> "$LOG"
+    should_kill=false
+    reason=""
 
-# === NOTA SULL'IBERNAZIONE ===
-# Per ridurre ulteriormente il consumo, considera di abilitare l'ibernazione profonda.
-# Vedi README.md sezione "Ottimizzazione consumi" per istruzioni.
+    # 1. CONTROLLO CPU
+    # Usa bc per confronto decimale
+    if (( $(echo "$cpu >= $CPU_THRESHOLD" | bc -l) )); then
+        should_kill=true
+        reason="CPU eccessiva ($cpu%)"
+    fi
+
+    # 2. CONTROLLO ALWAYS KILL (Eco-Wake)
+    # Se l'app è nella lista dei "pesanti", muore sempre.
+    if [ -n "$ALWAYS_KILL_LIST" ]; then
+        # Usa i pipe | come delimitatori per grep esatto
+        if echo "$ALWAYS_KILL_LIST" | grep -q "$app_name"; then
+            should_kill=true
+            reason="App pesante (Eco-Wake policy)"
+        fi
+    fi
+
+    if [ "$should_kill" = true ]; then
+        # Salva nome app per il wakeup
+        echo "$app_name" >> "$APPS_KILLED"
+        
+        # Kill gentile
+        pkill -f "$app_name"
+        log_message "🔪 KILL: $app_name ($reason)"
+    fi
+
+done
+
+log_message "💤 Sistema pronto per lo sleep."
