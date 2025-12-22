@@ -122,6 +122,110 @@ sleeplog
 
 ## ⚙️ Configurazione
 
+### Ottimizzazione consumi in standby 🔋
+
+Se vuoi ridurre **drasticamente** il consumo in sleep (target: <0.5% in 12 ore), segui queste ottimizzazioni:
+
+#### 1. Abbassa la soglia CPU (più aggressivo)
+
+```bash
+# Modifica ~/.sleep
+nano ~/.sleep
+
+# Cambia CPU_THRESHOLD da 1.0 a 0.3
+CPU_THRESHOLD=0.3
+```
+
+Questo chiuderà **molte più app**, anche quelle quasi ferme.
+
+#### 2. Abilita ibernazione profonda (consigliato)
+
+macOS di default usa `hibernatemode 3` (RAM attiva + backup su disco). Per consumo quasi zero:
+
+```bash
+# Verifica modalità attuale
+pmset -g | grep hibernatemode
+
+# Imposta ibernazione completa (RAM scritta su disco e spenta)
+sudo pmset -a hibernatemode 25
+
+# ATTENZIONE: Il risveglio sarà più lento (10-30 secondi)
+```
+
+**Modalità disponibili:**
+- `0` = Sleep normale (RAM sempre alimentata) - **consumo alto**
+- `3` = Sleep + backup RAM (default MacBook) - **consumo medio** ⬅️ Default
+- `25` = Ibernazione completa (RAM su disco) - **consumo quasi zero** ⬅️ Consigliato
+
+**Per tornare al default:**
+```bash
+sudo pmset -a hibernatemode 3
+```
+
+#### 3. Disabilita Power Nap (processi in background)
+
+Power Nap sveglia periodicamente il Mac per controllare email, aggiornamenti, ecc.
+
+```bash
+# Disabilita Power Nap
+sudo pmset -a powernap 0
+
+# Verifica
+pmset -g | grep powernap
+```
+
+#### 4. Chiudi più app manualmente
+
+Alcune app consumano molto anche "ferme":
+
+```bash
+# Aggiungi queste a PROTECTED_APPS per NON proteggerle (così vengono chiuse):
+# - Rimuovi "Terminal" se non ti serve
+# - Rimuovi "Activity Monitor"
+
+# Oppure abbassa semplicemente la soglia a 0.3 (punto 1)
+```
+
+#### 5. Configurazione completa "Ultra risparmio"
+
+```bash
+# Copia-incolla questo per massimo risparmio:
+
+# Ibernazione completa
+sudo pmset -a hibernatemode 25
+
+# Disabilita Power Nap
+sudo pmset -a powernap 0
+
+# Abbassa soglia CPU a 0.3%
+sed -i.bak 's/CPU_THRESHOLD=1.0/CPU_THRESHOLD=0.3/' ~/.sleep
+
+# Riavvia sleepwatcher
+brew services restart sleepwatcher
+
+echo "✅ Configurazione ultra-risparmio attivata!"
+echo "⚠️  Risveglio sarà più lento (~20-30 secondi)"
+```
+
+#### Risultati attesi
+
+| Configurazione | Consumo 12h | Risveglio |
+|----------------|-------------|-----------|
+| **Default macOS** | ~5-8% | Immediato |
+| **Script default** | ~2% | Immediato |
+| **+ hibernatemode 25** | ~0.3-0.5% | +20-30s |
+| **+ CPU 0.3 + no powernap** | ~0.1-0.3% | +20-30s |
+
+#### Per tornare alla configurazione normale
+
+```bash
+# Ripristina impostazioni standard
+sudo pmset -a hibernatemode 3
+sudo pmset -a powernap 1
+sed -i.bak 's/CPU_THRESHOLD=0.3/CPU_THRESHOLD=1.0/' ~/.sleep
+brew services restart sleepwatcher
+```
+
 ### Script `sleep` - Opzioni principali
 
 #### Soglia CPU

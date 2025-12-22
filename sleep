@@ -23,9 +23,9 @@ declare -a CRITICAL_APPS=(
 
 # App che vuoi SEMPRE proteggere dal kill (personalizza a piacere)
 declare -a PROTECTED_APPS=(
-  # "Terminal"
+  "Terminal"
   "iTerm"
-  # "Activity Monitor"
+  "Activity Monitor"
   # "Safari"           # decommentare per proteggere
   # "Mail"             # decommentare per proteggere
   # "Messages"         # decommentare per proteggere
@@ -132,3 +132,7 @@ done < "$APPS"
 
 echo "📊 Controllate: $CHECKED | Chiuse: $KILLED | Mantenute: $KEPT | Saltate (sistema): $SKIPPED" >> "$LOG"
 echo "" >> "$LOG"
+
+# === NOTA SULL'IBERNAZIONE ===
+# Per ridurre ulteriormente il consumo, considera di abilitare l'ibernazione profonda.
+# Vedi README.md sezione "Ottimizzazione consumi" per istruzioni.
