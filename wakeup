@@ -6,7 +6,7 @@ APPS_KILLED="$HOME/.sleep_apps_killed"
 echo "==== WAKE $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG"
 
 # Delay intelligente: aspetta che il sistema sia pronto
-sleep 3
+sleep 10
 
 # Verifica che il file esista e non sia vuoto
 if [ ! -f "$APPS_KILLED" ] || [ ! -s "$APPS_KILLED" ]; then

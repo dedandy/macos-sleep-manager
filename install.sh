@@ -183,10 +183,10 @@ echo ""
 
 # Step 6: Personalizzazione (opzionale)
 echo -e "${CYAN}═══════════════════════════════════════${NC}"
-print_step "Configurazione personalizzazione"
+print_step "Personalizzazione Script"
 echo -e "${CYAN}═══════════════════════════════════════${NC}"
 echo ""
-echo "Vuoi configurare le opzioni avanzate? [y/N]"
+echo "Vuoi configurare le opzioni degli script (Soglia CPU)? [y/N]"
 read -r response
 
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
@@ -205,29 +205,55 @@ if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
       print_warning "Valore non valido, mantenuta soglia 1.0%"
     fi
   fi
+fi
+
+# Step 7: Configurazione Sistema (PMSET)
+echo ""
+echo -e "${CYAN}═══════════════════════════════════════${NC}"
+print_step "Configurazione Sistema (Risparmio Energetico)"
+echo -e "${CYAN}═══════════════════════════════════════${NC}"
+echo ""
+echo "Vuoi applicare la configurazione 'Ultra-Saver'?"
+echo "   • Ibernazione profonda (hibernatemode 25)"
+echo "   • Disattiva Power Nap e TCP KeepAlive"
+echo "   • MASSIMO risparmio batteria, risveglio leggermente più lento."
+echo ""
+echo "Richiede password di amministratore (sudo)."
+echo "Procedere? [y/N]"
+read -r pmset_response
+
+if [[ "$pmset_response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+  echo ""
+  print_warning "Richiesta permessi di root per modificare pmset..."
+  
+  # Ibernazione
+  if sudo pmset -a hibernatemode 25; then
+    print_success "Hibernatemode impostato a 25 (Deep Sleep)"
+  else
+    print_error "Fallito impostazione hibernatemode"
+  fi
+  
+  # Power Nap
+  if sudo pmset -a powernap 0; then
+    print_success "Power Nap disattivato"
+  fi
+  
+  # TCP KeepAlive
+  if sudo pmset -a tcpkeepalive 0; then
+    print_success "TCP KeepAlive disattivato (Stop notifiche in sleep)"
+  fi
   
   echo ""
-  echo "Vuoi aggiungere app alla lista protetta? [y/N]"
-  read -r protect_response
-  
-  if [[ "$protect_response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    echo ""
-    echo "Modifica manualmente il file: nano ~/.sleep"
-    echo "Cerca la sezione PROTECTED_APPS e decommenta le app da proteggere"
-    echo ""
-    echo "Apri ora il file per modificarlo? [y/N]"
-    read -r edit_response
-    
-    if [[ "$edit_response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-      ${EDITOR:-nano} "$HOME/.sleep"
-    fi
-  fi
+  echo "Nota: Per ripristinare i valori predefiniti in futuro, usa:"
+  echo "sudo pmset -a hibernatemode 3; sudo pmset -a powernap 1; sudo pmset -a tcpkeepalive 1"
+else
+  print_success "Configurazione sistema saltata."
 fi
 
 # Riepilogo finale
 echo ""
 echo -e "${CYAN}═══════════════════════════════════════${NC}"
-echo -e "${GREEN}✓ INSTALLAZIONE COMPLETATA!${NC}"
+echo -e "${GREEN}✓ INSTALLAZIONE E CONFIGURAZIONE COMPLETATA!${NC}"
 echo -e "${CYAN}═══════════════════════════════════════${NC}"
 echo ""
 echo "📁 File installati:"
@@ -235,33 +261,17 @@ echo "   ~/.sleep       → Script sleep"
 echo "   ~/.wakeup      → Script wakeup"
 echo "   ~/.sleeplog    → Visualizzatore log"
 echo ""
-echo "🔧 Servizio:"
-echo "   sleepwatcher   → Avviato e configurato"
-RUNNING_COUNT=$(pgrep -f "sleepwatcher" | wc -l | tr -d ' ')
-echo "   Istanze attive: $RUNNING_COUNT (deve essere 1)"
-echo ""
-echo "📊 Comandi disponibili:"
-echo "   sleeplog       → Visualizza log"
-echo "   sleeplog stats → Statistiche"
-echo "   sleeplog help  → Guida completa"
-echo ""
-echo "⚙️  Configurazione:"
-echo "   Soglia CPU: $(grep "CPU_THRESHOLD=" "$HOME/.sleep" | cut -d'=' -f2)%"
-echo "   Log file: ~/.sleep_log"
+echo "🔧 Stato Sistema:"
+echo "   Service        → sleepwatcher (Attivo)"
+if [[ "$pmset_response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+echo "   Risparmio      → ULTRA (Ibernazione 25)"
+else
+echo "   Risparmio      → STANDARD"
+fi
 echo ""
 echo "🚀 Prossimi passi:"
-echo "   1. Ricarica la shell: source $SHELL_CONFIG"
-echo "   2. Testa chiudendo e riaprendo lo schermo (a batteria)"
-echo "   3. Controlla i log: sleeplog"
-echo ""
-echo "🔍 Verifica installazione:"
-echo "   pgrep -fl sleepwatcher  → Deve mostrare 1 solo processo"
-echo "   brew services list      → sleepwatcher deve essere 'started'"
-echo ""
-echo "📖 Per personalizzare:"
-echo "   - Modifica soglia CPU: nano ~/.sleep (riga ~13)"
-echo "   - Proteggi app: nano ~/.sleep (sezione PROTECTED_APPS)"
-echo "   - Consulta README.md per dettagli completi"
-echo ""
-print_success "Installazione completata con successo!"
+echo "   1. Assicurati di aver modificato il file 'wakeup' nella cartella sorgente"
+echo "      con 'sleep 10' prima di aver lanciato questo script!"
+echo "   2. Ricarica la shell: source $SHELL_CONFIG"
+echo "   3. Stacca l'alimentatore e chiudi il coperchio per testare."
 echo ""
