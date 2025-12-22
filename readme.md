@@ -1,71 +1,48 @@
-# 🔋 macOS Smart Sleep Manager
+# 🔋 macOS Smart Sleep Manager v2.0
 
-> **Risparmia il massimo della batteria quando chiudi il coperchio del Mac, ritrovando le tue app pronte quando lo riapri.**
-
-Hai notato che il tuo Mac consuma batteria anche quando è chiuso nello zaino? O che si sveglia caldo?
-Questo tool risolve il problema. Chiude automaticamente le applicazioni pesanti (come Chrome, Spotify, ecc.) quando il Mac va in stop e le riapre *magicamente* quando lo svegli.
-
-In più, ora include una **Modalità Ultra-Saver** per azzerare quasi completamente il consumo notturno.
+> **Il gestore di sospensione definitivo per il tuo Mac.**
+> Risparmia batteria chiudendo le app pesanti quando chiudi il coperchio, e decide intelligentemente se riaprirle in base a se hai collegato l'alimentatore.
 
 ---
 
-## ✨ Perché usarlo?
+## ✨ Cosa c'è di nuovo? (Smart-Wait Logic)
 
-1.  **Batteria Infinita:** Impedisce alle app di consumare energia mentre non usi il computer.
-2.  **Zero Surriscaldamenti:** Il Mac non si sveglierà nello zaino per colpa di qualche sito web aperto.
-3.  **Ripristino Intelligente:** Quando riapri il coperchio, le app che stavi usando si riaprono da sole.
-4.  **Installazione Facile:** Fa tutto da solo, ti basta rispondere a un paio di domande.
+Oltre a risparmiare batteria, ora il sistema è **intelligente**:
 
----
-
-## 🚀 Installazione (Facilissima)
-
-Non serve essere programmatori. Segui questi passi:
-
-1.  Scarica questo progetto (clicca su **Code** > **Download ZIP** ed estrai la cartella, oppure usa `git clone`).
-2.  Apri l'app **Terminale** sul tuo Mac.
-3.  Trascina il file `install.sh` dentro la finestra del Terminale e premi **Invio**.
-
-🎉 **Fatto!** L'installazione partirà e ti guiderà passo-passo.
-
-### Durante l'installazione ti verrà chiesto:
-* **Soglia CPU:** Puoi lasciare il valore predefinito (premi Invio). Serve a decidere quali app chiudere.
-* **Modalità Ultra-Saver (NUOVO):** Ti chiederà se vuoi attivare l'ibernazione profonda.
-    * ✅ **Consigliato (Sì):** Il Mac consumerà pochissimo (quasi 0%), ma impiegherà qualche secondo in più a svegliarsi (vedrai una barra di caricamento grigia).
-    * ❌ **No:** Il Mac si sveglia istantaneamente, ma consuma un po' di più (standard Apple).
+1.  **Chiusura:** Quando chiudi il coperchio, le app che consumano CPU (es. Chrome, Photoshop) vengono chiuse.
+2.  **Risveglio a Corrente ⚡️:** Se riapri il Mac con il cavo collegato, tutto si riapre subito.
+3.  **Risveglio a Batteria 🔋:** Le app pesanti **NON** vengono riaperte per non scaricare la batteria.
+    * *La magia:* Il sistema rimane in attesa per **5 minuti**.
+    * Se colleghi l'alimentatore entro questo tempo, le app in attesa si apriranno automaticamente!
 
 ---
 
-## 🛠 Come funziona?
+## 🚀 Installazione Rapida
 
-Tutto avviene in automatico:
-
-1.  **Quando chiudi il Mac:**
-    * Lo script controlla quali app stanno usando troppa CPU.
-    * Chiude queste app "mangia-batteria".
-    * (Opzionale) Attiva l'ibernazione profonda per spegnere completamente l'hardware.
-
-2.  **Quando riapri il Mac:**
-    * Il sistema si sveglia.
-    * Lo script aspetta qualche secondo che il Mac sia "pronto".
-    * Riapre automaticamente tutte le app che aveva chiuso, rimettendoti operativo.
+1.  Apri il Terminale nella cartella del progetto.
+2.  Esegui il comando:
+    ```bash
+    ./install.sh
+    ```
+3.  Segui le istruzioni a schermo. Ti verrà chiesto se vuoi attivare la modalità **Ultra-Saver** (ibernazione profonda) e quale soglia di CPU usare.
 
 ---
 
-## ❓ Problemi comuni
+## 🛠 Funzionalità Principali
 
-**Le app non si riaprono subito?**
-È normale attendere circa **10-15 secondi** dopo aver fatto il login. Abbiamo aumentato leggermente il tempo di attesa per assicurarci che il Mac sia ben sveglio prima di lanciare i programmi, evitando errori.
+* **Ultra-Saver Mode:** (Opzionale) Disattiva completamente il Mac durante la notte (ibernazione profonda) per consumo 0%.
+* **Eco-Wake:** Se sei in giro senza caricatore, evita di riaprire app inutilmente pesanti.
+* **Auto-Resume:** Se colleghi la corrente dopo il risveglio, il tuo lavoro torna come prima.
+* **Monitoraggio:** Un log dettagliato ti dice sempre cosa è successo mentre il Mac dormiva.
 
-**Voglio cambiare impostazioni**
-Ti basta **rilanciare il file `install.sh`**! Sovrascriverà le vecchie impostazioni con quelle nuove che sceglierai.
+---
 
-**Come disinstallare?**
-Se decidi di rimuoverlo, esegui questi comandi nel Terminale:
+## 📝 Come controllare cosa succede
+
+Vuoi sapere se un'app è stata chiusa o posticipata? Usa il comando:
+
 ```bash
-brew services stop sleepwatcher
-brew uninstall sleepwatcher
-rm ~/.sleep ~/.wakeup ~/.sleeplog
+sleeplog
 ```
 
 [Docs](./help.md)
