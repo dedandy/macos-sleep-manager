@@ -1,70 +1,98 @@
 #!/bin/bash
 
-# Configurazione
+# Configurazione Percorsi
+CONF_FILE="$HOME/.sleepmanager.conf"
 LOG_FILE="$HOME/.sleeplog_history"
 APPS_KILLED="$HOME/.sleep_killed_apps"
-CPU_THRESHOLD=1.0
-WHITELIST="Finder|System Events|loginwindow|WindowServer|syslogd|UserEventAgent|kextd|fseventsd|distnoted"
 
-# QUESTA LISTA VIENE AGGIORNATA DA INSTALL.SH
-# App che devono essere chiuse SEMPRE per garantire l'Eco-Wake
-ALWAYS_KILL_LIST=""
+# Carica Configurazione Utente
+if [ -f "$CONF_FILE" ]; then
+    source "$CONF_FILE"
+else
+    # Fallback se il file di config non esiste (Safe Defaults)
+    CPU_THRESHOLD=1.0
+    SAFE_QUIT_MODE=false
+    HEAVY_APPS=""
+    WHITELIST="Music|Spotify"
+fi
 
 # Funzione di logging
 log_message() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
 }
 
-# Inizio Log
-log_message "------------------------------------------------"
-log_message "[SLEEP] 🌙 Inizio procedura di sospensione..."
+# Funzione Chiusura Sicura
+quit_app() {
+    local app="$1"
+    local force_needed=true
+    
+    if [ "$SAFE_QUIT_MODE" = "true" ]; then
+        # Tenta chiusura gentile via AppleScript
+        osascript -e "quit app \"$app\"" >/dev/null 2>&1
+        
+        # Aspetta fino a 3 secondi che si chiuda
+        for i in {1..6}; do
+            if ! pgrep -x "$app" > /dev/null; then
+                force_needed=false
+                break
+            fi
+            sleep 0.5
+        done
+    fi
+    
+    # Se è ancora viva (o se SAFE_QUIT_MODE è false), usa la forza
+    if [ "$force_needed" = "true" ]; then
+        pkill -f "$app"
+        log_message "🔪 KILL (Forzato): $app"
+    else
+        log_message "👋 QUIT (Gentile): $app"
+    fi
+}
 
-# Pulizia file temporaneo
+# Inizio
+log_message "------------------------------------------------"
+log_message "[SLEEP] 🌙 Inizio procedura v4.0..."
+
+# Pulisce file temporaneo
 echo "" > "$APPS_KILLED"
 
-# Ottieni livello batteria per il log
+# Analisi Batteria
 BATT_PCT=$(pmset -g batt | grep -o "[0-9]*%" | head -1)
-log_message "🔋 Batteria al $BATT_PCT. Analisi processi..."
+log_message "🔋 Batteria: $BATT_PCT. Analisi processi..."
 
-# Ciclo sui processi utente
-# Esclude processi di root e di sistema per sicurezza
+# Scansione Processi
 ps -r -o %cpu,comm | grep -v "0.0" | grep -v "PROCESS" | while read -r cpu comm; do
     
-    # Rimuovi path completo (es. /Applications/Safari.app/Contents/MacOS/Safari -> Safari)
     app_name=$(basename "$comm")
     
-    # Salta processi in whitelist
-    if echo "$app_name" | grep -qE "$WHITELIST"; then
+    # Salta Whitelist e Processi di Sistema
+    # Aggiungiamo processi critici di sistema alla whitelist utente per sicurezza
+    FULL_WHITELIST="Finder|loginwindow|WindowServer|syslogd|UserEventAgent|kextd|fseventsd|distnoted|$WHITELIST"
+    
+    if echo "$app_name" | grep -qE "$FULL_WHITELIST"; then
         continue
     fi
 
     should_kill=false
     reason=""
 
-    # 1. CONTROLLO CPU
-    # Usa bc per confronto decimale
+    # 1. Check CPU
     if (( $(echo "$cpu >= $CPU_THRESHOLD" | bc -l) )); then
         should_kill=true
-        reason="CPU eccessiva ($cpu%)"
+        reason="CPU alta ($cpu%)"
     fi
 
-    # 2. CONTROLLO ALWAYS KILL (Eco-Wake)
-    # Se l'app è nella lista dei "pesanti", muore sempre.
-    if [ -n "$ALWAYS_KILL_LIST" ]; then
-        # Usa i pipe | come delimitatori per grep esatto
-        if echo "$ALWAYS_KILL_LIST" | grep -q "$app_name"; then
+    # 2. Check Eco-Wake (Heavy Apps)
+    if [ -n "$HEAVY_APPS" ]; then
+        if echo "$HEAVY_APPS" | grep -q "$app_name"; then
             should_kill=true
-            reason="App pesante (Eco-Wake policy)"
+            reason="Eco-Wake Policy"
         fi
     fi
 
     if [ "$should_kill" = true ]; then
-        # Salva nome app per il wakeup
         echo "$app_name" >> "$APPS_KILLED"
-        
-        # Kill gentile
-        pkill -f "$app_name"
-        log_message "🔪 KILL: $app_name ($reason)"
+        quit_app "$app_name"
     fi
 
 done

@@ -1,111 +1,128 @@
 #!/bin/bash
 
 # Configurazione
+CONF_FILE="$HOME/.sleepmanager.conf"
 LOG_FILE="$HOME/.sleeplog_history"
 APPS_KILLED="$HOME/.sleep_killed_apps"
 APPS_PENDING="$HOME/.sleep_pending_apps"
 
-# -----------------------------------------------------------
-# LISTA APP PESANTI (DA POSTICIPARE SE A BATTERIA)
-# -----------------------------------------------------------
-HEAVY_APPS_SKIP="Google Chrome|Firefox|Adobe Photoshop|Adobe Premiere Pro|DaVinci Resolve|Blender|Unreal Editor|Unity"
+# Carica Config
+if [ -f "$CONF_FILE" ]; then
+    source "$CONF_FILE"
+else
+    ENABLE_NOTIFICATIONS=false
+    HEAVY_APPS=""
+fi
 
-# Funzione di logging
+# Funzione Logging
 log_message() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
 }
 
-# Funzione per lanciare un'app (usata sia subito che dopo)
+# Funzione Notifiche
+send_notify() {
+    if [ "$ENABLE_NOTIFICATIONS" = "true" ]; then
+        osascript -e "display notification \"$1\" with title \"Sleep Manager\" subtitle \"$2\""
+    fi
+}
+
+# Funzione Launch
 launch_app() {
-    local app_name="$1"
-    if open -a "$app_name"; then
-        log_message "✅ Riaperta: $app_name"
+    local app="$1"
+    if open -a "$app"; then
+        log_message "✅ Riaperta: $app"
+        return 0
     else
-        # Fallback: cerca il percorso
-        app_path=$(find /Applications -name "$app_name.app" -maxdepth 2 2>/dev/null | head -n 1)
+        # Fallback path
+        app_path=$(find /Applications -name "$app.app" -maxdepth 2 2>/dev/null | head -n 1)
         if [ -z "$app_path" ]; then
-            app_path=$(find ~/Applications -name "$app_name.app" -maxdepth 2 2>/dev/null | head -n 1)
+             app_path=$(find ~/Applications -name "$app.app" -maxdepth 2 2>/dev/null | head -n 1)
         fi
         
         if [ -n "$app_path" ]; then
             open "$app_path"
-            log_message "✅ Riaperta (da path): $app_name"
+            log_message "✅ Riaperta (path): $app"
+            return 0
         else
-            log_message "❌ Errore: Impossibile trovare $app_name"
+            log_message "❌ Errore: $app non trovata"
+            return 1
         fi
     fi
 }
 
-# 1. Attesa iniziale per stabilità sistema
-sleep 10
+# Attesa stabilità
+sleep 8
 
-# Pulizia vecchi pending se per caso rimasti
 rm -f "$APPS_PENDING"
 
-# 2. Controllo Fonte di Alimentazione Iniziale
+# Check Alimentazione
 IS_ON_BATTERY=false
 if pmset -g batt | grep -q "Source: Battery Power"; then
     IS_ON_BATTERY=true
-    log_message "🔋 Alimentazione: BATTERIA. Modalità Smart-Wait attiva."
+    log_message "🔋 Wakeup a BATTERIA."
 else
-    log_message "⚡️ Alimentazione: CORRENTE. Ripristino completo."
+    log_message "⚡️ Wakeup a CORRENTE."
 fi
 
-# 3. Ripristino Immediato (o accodamento)
+# Ripristino
+any_deferred=false
+count_restored=0
+
 if [ -f "$APPS_KILLED" ]; then
-    log_message "🔄 Analisi app da ripristinare..."
-    
     while read -r app_name; do
         if [ -n "$app_name" ]; then
             
             should_defer=false
             
-            # Se siamo a batteria E l'app è pesante -> METTI IN ATTESA
             if [ "$IS_ON_BATTERY" = true ]; then
-                if echo "$app_name" | grep -qE "$HEAVY_APPS_SKIP"; then
+                if echo "$HEAVY_APPS" | grep -q "$app_name"; then
                     should_defer=true
                 fi
             fi
             
             if [ "$should_defer" = true ]; then
                 echo "$app_name" >> "$APPS_PENDING"
-                log_message "⏳ POSTICIPATO: $app_name (In attesa di alimentazione...)"
+                log_message "⏳ Posticipato: $app_name"
+                any_deferred=true
             else
                 launch_app "$app_name"
+                ((count_restored++))
                 sleep 0.5
             fi
         fi
     done < "$APPS_KILLED"
-    
     rm "$APPS_KILLED"
-else
-    log_message "ℹ️ Nessuna app da ripristinare"
+    
+    # Notifica post-wakeup
+    if [ "$any_deferred" = true ]; then
+        send_notify "App pesanti in pausa" "Collega l'alimentatore per riaprirle."
+    elif [ $count_restored -gt 0 ]; then
+        send_notify "Bentornato" "Ripristinate $count_restored applicazioni."
+    fi
 fi
 
-# 4. MONITORAGGIO IN BACKGROUND (Se ci sono app in attesa)
+# Background Monitor (Smart Wait)
 if [ -f "$APPS_PENDING" ]; then
-    log_message "👀 Avvio monitoraggio alimentazione per 5 minuti..."
+    log_message "👀 Monitoraggio alimentazione (5 min)..."
     
-    # Avvia una subshell in background che non blocca il terminale
     (
-        # Tenta per 30 volte (30 * 10 sec = 300 sec = 5 minuti)
+        # Ricarica config anche nella subshell per sicurezza
+        if [ -f "$HOME/.sleepmanager.conf" ]; then source "$HOME/.sleepmanager.conf"; fi
+        
         for i in {1..30}; do
             sleep 10
-            
-            # Controlla se ORA è collegata la corrente
             if ! pmset -g batt | grep -q "Source: Battery Power"; then
-                # EUREKA! Corrente collegata
-                echo "$(date '+%Y-%m-%d %H:%M:%S') - ⚡️ CORRENTE RILEVATA! Apro app in attesa..." >> "$LOG_FILE"
+                # Cavo collegato!
+                echo "$(date '+%Y-%m-%d %H:%M:%S') - ⚡️ Corrente rilevata! Ripristino..." >> "$LOG_FILE"
                 
-                while read -r pending_app; do
-                    # Logica di apertura inline (perché siamo in subshell)
-                    if open -a "$pending_app"; then
-                         echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Riaperta (Delayed): $pending_app" >> "$LOG_FILE"
-                    else
-                         # Tentativo semplificato path standard
-                         open "/Applications/$pending_app.app" 2>/dev/null || \
-                         echo "$(date '+%Y-%m-%d %H:%M:%S') - ❌ Fallito delay open: $pending_app" >> "$LOG_FILE"
-                    fi
+                # Notifica
+                if [ "$ENABLE_NOTIFICATIONS" = "true" ]; then
+                     osascript -e "display notification \"Riapertura app in corso...\" with title \"Sleep Manager\""
+                fi
+
+                while read -r pending; do
+                    open -a "$pending" 2>/dev/null || open "/Applications/$pending.app" 2>/dev/null
+                    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Riaperta (Delayed): $pending" >> "$LOG_FILE"
                     sleep 1
                 done < "$APPS_PENDING"
                 
@@ -113,14 +130,6 @@ if [ -f "$APPS_PENDING" ]; then
                 exit 0
             fi
         done
-        
-        # Se finisce il ciclo e siamo ancora qui, tempo scaduto
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - ⏱ Tempo scaduto. App in attesa cancellate." >> "$LOG_FILE"
         rm "$APPS_PENDING"
     ) &
-    
-    # La & commerciale alla fine della parentesi manda tutto quel blocco in background
-    # Lo script principale termina qui, lasciando il "vigilante" attivo.
 fi
-
-log_message "🏁 Wakeup script terminato (monitoraggio in background se necessario)"

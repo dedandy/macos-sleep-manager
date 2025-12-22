@@ -1,46 +1,44 @@
-# 🔋 macOS Smart Sleep Manager - Documentazione Tecnica v3.1
+# 📖 Manuale Tecnico v4.0
 
-Sistema avanzato di gestione energetica per macOS. Combina automazione dei processi (sleepwatcher) con ottimizzazione del kernel (pmset) per massimizzare l'autonomia.
+## Architettura del Sistema
 
-## 📋 Indice
+La versione 4.0 introduce una separazione tra **Logica** e **Configurazione**.
 
-- [Caratteristiche](#-caratteristiche)
-- [Requisiti](#-requisiti)
-- [Installazione e Auto-Config](#-installazione-e-auto-config)
-- [Modalità di Sospensione (PMSET)](#-modalità-di-sospensione-pmset)
-- [Logica Eco-Wake e Sync](#-logica-eco-wake-e-sync)
-- [Configurazione Avanzata](#-configurazione-avanzata)
-- [Comandi sleeplog](#-comandi-sleeplog)
-- [File di sistema](#-file-di-sistema)
-- [Disinstallazione](#-disinstallazione)
+1.  **Logic Layer (`~/.sleep`, `~/.wakeup`):** Script di esecuzione che contengono l'intelligenza. Non dovrebbero essere modificati dall'utente.
+2.  **Config Layer (`~/.sleepmanager.conf`):** File di testo semplice (variabili BASH) caricato dinamicamente dagli script.
 
-## ✨ Caratteristiche
+## Funzionalità Avanzate
 
-- ✅ **Smart CPU Killer**: Chiude le app sopra una soglia di CPU definita (default 1.0%).
-- ✅ **Auto-Discovery**: L'installer rileva le app pesanti installate (Adobe, Docker, IDE, ecc.).
-- ✅ **Full Sync**: Le app pesanti vengono terminate forzatamente allo sleep e messe in attesa al risveglio (se a batteria).
-- ✅ **Smart-Wait**: Monitoraggio background post-risveglio (5 min) per riapertura ritardata su connessione AC.
-- ✅ **Hybrid Sleep**: Gestione a doppio stadio (Sleep -> Ibernazione).
+### Graceful Quit (Chiusura Sicura)
+Invece di usare subito `kill -9` (che può corrompere file), lo script v4.0 esegue:
+1.  Invia comando AppleScript `quit app "Nome"` (equivalente a CMD+Q).
+2.  Attende fino a 3 secondi controllando se il processo termina.
+3.  Solo se l'app è bloccata, esegue `pkill`.
 
-## 🔧 Requisiti
+Puoi disabilitarlo impostando `SAFE_QUIT_MODE=false` nel config per uno spegnimento istantaneo (ma rischioso).
 
-- macOS (Intel o Apple Silicon)
-- Homebrew
-- Pacchetto `sleepwatcher` (installato automaticamente)
+### Notifiche
+Il sistema usa `osascript` per mostrare banner nativi macOS (in alto a destra) quando:
+* App vengono posticipate (Icona ⏳).
+* App vengono ripristinate (Icona ✅).
+* Viene rilevata corrente dopo un'attesa (Icona ⚡️).
 
-## 📦 Installazione e Auto-Config
+### Whitelist
+Oltre alle app di sistema, puoi aggiungere app personali che non devono MAI essere chiuse (es. Music player) modificando la variabile `WHITELIST` nel file `.conf`.
 
-```bash
-chmod +x install.sh
-./install.sh
-```
+## Struttura File
 
-## ⚙️ Configurazione Avanzata
+| File | Percorso | Descrizione |
+| :--- | :--- | :--- |
+| **Config** | `~/.sleepmanager.conf` | **Tutte le tue impostazioni.** |
+| Script Sleep | `~/.sleep` | Logica di chiusura. |
+| Script Wake | `~/.wakeup` | Logica di apertura. |
+| Log | `~/.sleeplog_history` | Storico eventi. |
 
-Dopo l'installazione, puoi personalizzare il comportamento modificando direttamente i file nella tua Home.
+## FAQ
 
-### 1. Modificare la soglia CPU
-File: `~/.sleep`
-```bash
-CPU_THRESHOLD=1.0  # Cambia questo valore
-```
+**Le notifiche mi danno fastidio.**
+Apri `~/.sleepmanager.conf` e imposta `ENABLE_NOTIFICATIONS=false`.
+
+**Ho installato un nuovo gioco pesante.**
+Apri `~/.sleepmanager.conf` e aggiungilo alla riga `HEAVY_APPS` (separato da `|`).

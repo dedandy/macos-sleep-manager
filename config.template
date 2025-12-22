@@ -1,0 +1,33 @@
+# -----------------------------------------------------------------------------
+# macOS Sleep Manager v4.0 - File di Configurazione
+# Posizione: ~/.sleepmanager.conf
+# -----------------------------------------------------------------------------
+
+# --- IMPOSTAZIONI GENERALI ---
+
+# Notifiche di sistema (true/false)
+# Ti avvisa quando le app vengono posticipate o riaperte
+ENABLE_NOTIFICATIONS=true
+
+# Chiusura Sicura (true/false)
+# true:  Tenta di chiudere l'app gentilmente (CMD+Q) e aspetta 2 sec prima di forzare.
+# false: Forza immediatamente la chiusura (più veloce, ma rischio dati non salvati).
+SAFE_QUIT_MODE=true
+
+# --- SENSITIVITÀ ---
+
+# Soglia CPU (0.1 - 100.0)
+# Se un'app supera questa % al momento dello sleep, viene chiusa.
+CPU_THRESHOLD=1.0
+
+# --- APPLICAZIONI ---
+
+# Whitelist: App che non devono MAI essere chiuse (separate da |)
+# Finder e processi di sistema sono esclusi automaticamente a monte.
+WHITELIST="Music|Spotify|Transmission|IINA|VLC"
+
+# Eco-Wake / Heavy Apps List (Gestita dall'Installer)
+# Queste app vengono:
+# 1. Chiuse SEMPRE allo sleep (per pulizia)
+# 2. Riaperte SOLO se c'è corrente (per risparmio)
+HEAVY_APPS="Google Chrome|Firefox|Adobe Photoshop"
