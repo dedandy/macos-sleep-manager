@@ -66,7 +66,6 @@ Se decidi di rimuoverlo, esegui questi comandi nel Terminale:
 brew services stop sleepwatcher
 brew uninstall sleepwatcher
 rm ~/.sleep ~/.wakeup ~/.sleeplog
-
-
+```
 
 [Docs](./help.md)
