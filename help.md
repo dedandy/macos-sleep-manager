@@ -1,44 +1,96 @@
-# 📖 Manuale Tecnico v4.0
+# 📖 Documentazione Tecnica Avanzata - macOS Sleep Manager v4.2
 
-## Architettura del Sistema
+Questa guida dettaglia il funzionamento interno, le variabili di configurazione e le procedure di risoluzione problemi del sistema.
 
-La versione 4.0 introduce una separazione tra **Logica** e **Configurazione**.
+---
 
-1.  **Logic Layer (`~/.sleep`, `~/.wakeup`):** Script di esecuzione che contengono l'intelligenza. Non dovrebbero essere modificati dall'utente.
-2.  **Config Layer (`~/.sleepmanager.conf`):** File di testo semplice (variabili BASH) caricato dinamicamente dagli script.
+## 🏗 Architettura del Sistema
 
-## Funzionalità Avanzate
+Il software si basa su tre componenti principali:
+1.  **Daemon (`sleepwatcher`)**: Un servizio di background che monitora i segnali del kernel relativi allo stato del display (Sleep/Wake).
+2.  **Logic Engine (`.sleep` & `.wakeup`)**: Script Bash che eseguono l'analisi dei processi e la gestione energetica.
+3.  **Config Layer (`.sleepmanager.conf`)**: Un file di configurazione centralizzato che separa le preferenze dell'utente dalla logica di esecuzione.
 
-### Graceful Quit (Chiusura Sicura)
-Invece di usare subito `kill -9` (che può corrompere file), lo script v4.0 esegue:
-1.  Invia comando AppleScript `quit app "Nome"` (equivalente a CMD+Q).
-2.  Attende fino a 3 secondi controllando se il processo termina.
-3.  Solo se l'app è bloccata, esegue `pkill`.
+---
 
-Puoi disabilitarlo impostando `SAFE_QUIT_MODE=false` nel config per uno spegnimento istantaneo (ma rischioso).
+## ⚙️ Configurazione Dettagliata (`~/.sleepmanager.conf`)
 
-### Notifiche
-Il sistema usa `osascript` per mostrare banner nativi macOS (in alto a destra) quando:
-* App vengono posticipate (Icona ⏳).
-* App vengono ripristinate (Icona ✅).
-* Viene rilevata corrente dopo un'attesa (Icona ⚡️).
+Il file di configurazione viene caricato all'avvio di ogni ciclo di sospensione o risveglio.
 
-### Whitelist
-Oltre alle app di sistema, puoi aggiungere app personali che non devono MAI essere chiuse (es. Music player) modificando la variabile `WHITELIST` nel file `.conf`.
-
-## Struttura File
-
-| File | Percorso | Descrizione |
+| Variabile | Valore Default | Descrizione |
 | :--- | :--- | :--- |
-| **Config** | `~/.sleepmanager.conf` | **Tutte le tue impostazioni.** |
-| Script Sleep | `~/.sleep` | Logica di chiusura. |
-| Script Wake | `~/.wakeup` | Logica di apertura. |
-| Log | `~/.sleeplog_history` | Storico eventi. |
+| `ENABLE_NOTIFICATIONS` | `true` | Se `true`, invia notifiche native macOS tramite AppleScript durante il risveglio. |
+| `SAFE_QUIT_MODE` | `true` | Se `true`, tenta una chiusura gentile (CMD+Q) e attende 3s prima di forzare il `kill`. |
+| `CPU_THRESHOLD` | `1.0` | Soglia di utilizzo CPU (%). Ogni app sopra questo valore viene terminata allo sleep. |
+| `WHITELIST` | `"Music\|Spotify"` | Regex delle app che non devono MAI essere chiuse, anche se superano la soglia CPU. |
+| `HEAVY_APPS` | (Auto-detected) | Lista di app "energivore" che vengono chiuse sempre allo sleep e riaperte solo se il Mac è alimentato (Eco-Wake). |
 
-## FAQ
+---
 
-**Le notifiche mi danno fastidio.**
-Apri `~/.sleepmanager.conf` e imposta `ENABLE_NOTIFICATIONS=false`.
+## 📝 Editor di Configurazione (`sleepconf`)
+Per facilitare la personalizzazione, è stato introdotto un editor interattivo.
+- **Comando**: `sleepconf`
+- **Funzione**: Permette di modificare i parametri booleani (true/false) con un click e inserire nuovi valori per CPU e liste senza editare manualmente il file di testo. 
+- **Sicurezza**: L'editor crea automaticamente una copia di backup durante la scrittura per evitare la corruzione del file `.conf`.
 
-**Ho installato un nuovo gioco pesante.**
-Apri `~/.sleepmanager.conf` e aggiungilo alla riga `HEAVY_APPS` (separato da `|`).
+---
+
+## ⚡️ Logica di Funzionamento
+
+### Fase di Sospensione (`.sleep`)
+1.  **Inizializzazione Log**: Viene creato un nuovo marcatore `==== SLEEP ====` nel file `.sleeplog_history`.
+2.  **Scansione Processi**: Esegue `ps -r -A` per ottenere la lista processi ordinata per consumo.
+3.  **Filtro**: Ignora l'intestazione, i processi di sistema (kernel, windowserver, ecc.) e la whitelist.
+4.  **Decisione**: 
+    - Se l'app è in `HEAVY_APPS`, viene segnata per la chiusura.
+    - Se l'app consuma più di `CPU_THRESHOLD`, viene segnata per la chiusura.
+5.  **Esecuzione**: L'app viene chiusa e il suo nome salvato in `~/.sleep_killed_apps`.
+
+### Fase di Risveglio (`.wakeup`)
+1.  **Check Alimentazione**: Verifica tramite `pmset -g batt` se il Mac è a batteria o corrente.
+2.  **Ripristino Differenziato**:
+    - **AC Power**: Tutte le app in lista vengono riaperte immediatamente.
+    - **Battery Power**: Le app in `HEAVY_APPS` vengono spostate in `~/.sleep_pending_apps` e l'utente riceve una notifica di "Eco-Wake".
+3.  **Smart-Wait**: Un processo in background monitora per 5 minuti lo stato dell'alimentazione. Se il cavo viene collegato, le app in sospeso vengono caricate automaticamente.
+
+---
+
+## 🛠 Dashboard e Log (`sleeplog`)
+
+Il comando `sleeplog` agisce come un parser intelligente del file `~/.sleeplog_history`.
+
+- **Dashboard (Default)**: Utilizza `tail -r` e `awk` per isolare solo l'ultima sessione compresa tra i marcatori `====`.
+- **Opzioni CLI**:
+    - `all`: Output grezzo dell'intero file log.
+    - `recent [n]`: Ultime `n` righe del log.
+    - `clear`: Svuota il file e inserisce un marcatore di reset.
+
+---
+
+## 🔐 Sicurezza e Permessi (TCC & Codesign)
+
+macOS protegge l'accesso ai processi e al disco tramite il framework TCC. 
+
+### Perché serve la firma (`codesign`)?
+I binari installati tramite Homebrew spesso non hanno una firma valida per le policy di sicurezza locali. L'installer v4.2 esegue:
+`sudo codesign --force --deep --sign - $(which sleepwatcher)`
+Questo comando applica una "firma ad-hoc" che permette a macOS di identificare univocamente il processo e salvarlo stabilmente nella lista **Accesso completo al disco**.
+
+### Procedura di sblocco manuale:
+Se il log non si aggiorna:
+1. Aprire `Impostazioni di Sistema` > `Privacy e Sicurezza` > `Accesso completo al disco`.
+2. Verificare la presenza di `sleepwatcher` (percorso: `/opt/homebrew/sbin/sleepwatcher`).
+3. Se assente, aggiungere manualmente il Terminale e `/bin/zsh`.
+
+---
+
+## 🧪 Manutenzione e Debug
+
+**Visualizzare i log in tempo reale:**
+`tail -f ~/.sleeplog_history`
+
+**Verificare se il servizio è in ascolto:**
+`brew services list`
+
+**Testare la logica di chiusura senza chiudere il Mac:**
+`~/.sleep && sleeplog`

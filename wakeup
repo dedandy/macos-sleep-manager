@@ -1,135 +1,31 @@
 #!/bin/bash
-
-# Configurazione
 CONF_FILE="$HOME/.sleepmanager.conf"
 LOG_FILE="$HOME/.sleeplog_history"
 APPS_KILLED="$HOME/.sleep_killed_apps"
 APPS_PENDING="$HOME/.sleep_pending_apps"
 
-# Carica Config
-if [ -f "$CONF_FILE" ]; then
-    source "$CONF_FILE"
-else
-    ENABLE_NOTIFICATIONS=false
-    HEAVY_APPS=""
-fi
+[ -f "$CONF_FILE" ] && source "$CONF_FILE"
 
-# Funzione Logging
-log_message() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"
-}
+log_message() { echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"; }
 
-# Funzione Notifiche
-send_notify() {
-    if [ "$ENABLE_NOTIFICATIONS" = "true" ]; then
-        osascript -e "display notification \"$1\" with title \"Sleep Manager\" subtitle \"$2\""
-    fi
-}
+# Intestazione per la Dashboard
+echo "==== WAKE $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG_FILE"
 
-# Funzione Launch
-launch_app() {
-    local app="$1"
-    if open -a "$app"; then
-        log_message "✅ Riaperta: $app"
-        return 0
-    else
-        # Fallback path
-        app_path=$(find /Applications -name "$app.app" -maxdepth 2 2>/dev/null | head -n 1)
-        if [ -z "$app_path" ]; then
-             app_path=$(find ~/Applications -name "$app.app" -maxdepth 2 2>/dev/null | head -n 1)
-        fi
-        
-        if [ -n "$app_path" ]; then
-            open "$app_path"
-            log_message "✅ Riaperta (path): $app"
-            return 0
-        else
-            log_message "❌ Errore: $app non trovata"
-            return 1
-        fi
-    fi
-}
+sleep 5 # Attesa stabilità sistema
 
-# Attesa stabilità
-sleep 8
-
-rm -f "$APPS_PENDING"
-
-# Check Alimentazione
-IS_ON_BATTERY=false
-if pmset -g batt | grep -q "Source: Battery Power"; then
-    IS_ON_BATTERY=true
-    log_message "🔋 Wakeup a BATTERIA."
-else
-    log_message "⚡️ Wakeup a CORRENTE."
-fi
-
-# Ripristino
-any_deferred=false
-count_restored=0
+IS_BATT=false
+pmset -g batt | grep -q "Battery Power" && IS_BATT=true
 
 if [ -f "$APPS_KILLED" ]; then
-    while read -r app_name; do
-        if [ -n "$app_name" ]; then
-            
-            should_defer=false
-            
-            if [ "$IS_ON_BATTERY" = true ]; then
-                if echo "$HEAVY_APPS" | grep -q "$app_name"; then
-                    should_defer=true
-                fi
-            fi
-            
-            if [ "$should_defer" = true ]; then
-                echo "$app_name" >> "$APPS_PENDING"
-                log_message "⏳ Posticipato: $app_name"
-                any_deferred=true
-            else
-                launch_app "$app_name"
-                ((count_restored++))
-                sleep 0.5
-            fi
+    while read -r app; do
+        [ -z "$app" ] && continue
+        if [ "$IS_BATT" = true ] && [[ "$HEAVY_APPS" =~ "$app" ]]; then
+            echo "$app" >> "$APPS_PENDING"
+            log_message "⏳ POSTICIPATO: $app (Batteria)"
+        else
+            open -a "$app" && log_message "✅ RIAPERTO: $app"
         fi
     done < "$APPS_KILLED"
     rm "$APPS_KILLED"
-    
-    # Notifica post-wakeup
-    if [ "$any_deferred" = true ]; then
-        send_notify "App pesanti in pausa" "Collega l'alimentatore per riaprirle."
-    elif [ $count_restored -gt 0 ]; then
-        send_notify "Bentornato" "Ripristinate $count_restored applicazioni."
-    fi
 fi
-
-# Background Monitor (Smart Wait)
-if [ -f "$APPS_PENDING" ]; then
-    log_message "👀 Monitoraggio alimentazione (5 min)..."
-    
-    (
-        # Ricarica config anche nella subshell per sicurezza
-        if [ -f "$HOME/.sleepmanager.conf" ]; then source "$HOME/.sleepmanager.conf"; fi
-        
-        for i in {1..30}; do
-            sleep 10
-            if ! pmset -g batt | grep -q "Source: Battery Power"; then
-                # Cavo collegato!
-                echo "$(date '+%Y-%m-%d %H:%M:%S') - ⚡️ Corrente rilevata! Ripristino..." >> "$LOG_FILE"
-                
-                # Notifica
-                if [ "$ENABLE_NOTIFICATIONS" = "true" ]; then
-                     osascript -e "display notification \"Riapertura app in corso...\" with title \"Sleep Manager\""
-                fi
-
-                while read -r pending; do
-                    open -a "$pending" 2>/dev/null || open "/Applications/$pending.app" 2>/dev/null
-                    echo "$(date '+%Y-%m-%d %H:%M:%S') - ✅ Riaperta (Delayed): $pending" >> "$LOG_FILE"
-                    sleep 1
-                done < "$APPS_PENDING"
-                
-                rm "$APPS_PENDING"
-                exit 0
-            fi
-        done
-        rm "$APPS_PENDING"
-    ) &
-fi
+log_message "☀️ Sistema Sveglio."
