@@ -67,6 +67,15 @@ Il comando `sleeplog` agisce come un parser intelligente del file `~/.sleeplog_h
 
 ---
 
+## Strategie Energetiche (scelte in install.sh)
+1. **Standard**: Mantiene la RAM alimentata. Il Mac si sveglia subito, ma consuma un po' di batteria durante la notte.
+2. **Ultra**: Scrive la RAM sul disco e spegne tutto. Consumo zero, ma il risveglio richiede 10-15 secondi.
+3. **Hybrid**: Mantiene la RAM per i primi 15 minuti, poi passa all'ibernazione se non lo usi. È il compromesso perfetto.
+
+## Utility
+- `sleeplog`: Dashboard minima dell'attività.
+- `sleepconf`: Editor grafico per cambiare parametri senza usare il terminale.
+
 ## 🔐 Sicurezza e Permessi (TCC & Codesign)
 
 macOS protegge l'accesso ai processi e al disco tramite il framework TCC. 

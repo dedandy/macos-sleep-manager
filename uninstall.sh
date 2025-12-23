@@ -1,7 +1,8 @@
 #!/bin/bash
-echo "Disinstallazione macOS Sleep Manager..."
+echo "Rimozione macOS Sleep Manager v4.2..."
 brew services stop sleepwatcher
-sudo pmset -a hibernatemode 3 powernap 1
-rm -f "$HOME/.sleep" "$HOME/.wakeup" "$HOME/.sleeplog" "$HOME/.sleepmanager.conf"
+# Ripristino valori Apple standard
+sudo pmset -a hibernatemode 3 standby 1 powernap 1 tcpkeepalive 1
+rm -f "$HOME/.sleep" "$HOME/.wakeup" "$HOME/.sleeplog" "$HOME/.sleepmanager_editor" "$HOME/.sleepmanager.conf"
 rm -f "$HOME/.sleeplog_history" "$HOME/.sleep_killed_apps" "$HOME/.sleep_pending_apps"
-echo "Rimozione completata. Ripristinate impostazioni Apple."
+echo "Disinstallazione completata. Sistema ripristinato."
