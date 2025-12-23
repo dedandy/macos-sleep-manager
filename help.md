@@ -1,6 +1,13 @@
-# 📖 Documentazione Tecnica Avanzata - macOS Sleep Manager v4.2
+# 📖 Documentazione Tecnica Avanzata 
 
 Questa guida dettaglia il funzionamento interno, le variabili di configurazione e le procedure di risoluzione problemi del sistema.
+
+---
+
+## 🤖 Auto-Discovery (v4.3)
+L'installer ora analizza la cartella `/Applications` e classifica le app trovate:
+- **Whitelist**: App di comunicazione e media (Spotify, Slack, WhatsApp) che restano attive.
+- **Heavy Apps**: Software di sviluppo e grafica (WebStorm, Docker, Adobe) che vengono messi in pausa per preservare la batteria.
 
 ---
 
