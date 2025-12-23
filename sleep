@@ -1,22 +1,24 @@
 #!/bin/bash
+# ~/.sleep v4.4
 CONF_FILE="$HOME/.sleepmanager.conf"
 LOG_FILE="$HOME/.sleeplog_history"
 APPS_KILLED="$HOME/.sleep_killed_apps"
 [ -f "$CONF_FILE" ] && source "$CONF_FILE"
 
-# PULIZIA DASHBOARD: Ogni volta che chiudi, il log riparte da zero per la dashboard
-echo "==== SLEEP $(date '+%Y-%m-%d %H:%M:%S') ====" > "$LOG_FILE"
+# Cattura batteria alla chiusura
+BATT_START=$(pmset -g batt | grep -o "[0-9]*%" | head -1)
+echo "$BATT_START" > "$HOME/.sleep_batt_start"
 
-log_message() { echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"; }
+echo "==== SESSION_START $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG_FILE"
+echo "ACTION: SLEEP | BATT: $BATT_START" >> "$LOG_FILE"
 
 ps -r -A -o %cpu,comm | sed '1d' | grep -v "^ *0.0" | while read -r cpu comm; do
-    if ! [[ "$cpu" =~ ^[0-9.]+$ ]]; then continue; fi
     app_name=$(basename -- "$comm")
-    if echo "$app_name" | grep -qE "Finder|loginwindow|WindowServer|syslogd|UserEventAgent|launchd|kernel_task|$WHITELIST"; then continue; fi
+    if echo "$app_name" | grep -qE "Finder|loginwindow|WindowServer|$WHITELIST"; then continue; fi
     if (( $(echo "$cpu >= $CPU_THRESHOLD" | bc -l) )) || [[ "$HEAVY_APPS" =~ "$app_name" ]]; then
         echo "$app_name" >> "$APPS_KILLED"
         pkill -f "$app_name"
-        log_message "🔪 KILL: $app_name"
+        echo "  [KILL] $app_name ($cpu%)" >> "$LOG_FILE"
     fi
 done
-log_message "💤 Sistema pronto."
+echo "==== SESSION_END ====" >> "$LOG_FILE"

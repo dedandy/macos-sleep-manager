@@ -1,31 +1,30 @@
 #!/bin/bash
-CONF_FILE="$HOME/.sleepmanager.conf"
+# ~/.wakeup v4.4
 LOG_FILE="$HOME/.sleeplog_history"
-APPS_KILLED="$HOME/.sleep_killed_apps"
-APPS_PENDING="$HOME/.sleep_pending_apps"
-
+BATT_START_FILE="$HOME/.sleep_batt_start"
+CONF_FILE="$HOME/.sleepmanager.conf"
 [ -f "$CONF_FILE" ] && source "$CONF_FILE"
 
-log_message() { echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "$LOG_FILE"; }
+BATT_END=$(pmset -g batt | grep -o "[0-9]*%" | head -1)
+BATT_START=$(cat "$BATT_START_FILE" 2>/dev/null || echo "$BATT_END")
+DELTA=$(( ${BATT_START%\%} - ${BATT_END%\%} ))
 
-# Intestazione per la Dashboard
-echo "==== WAKE $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG_FILE"
-
-sleep 5 # Attesa stabilità sistema
+echo "==== SESSION_START $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG_FILE"
+echo "ACTION: WAKE | BATT: $BATT_END | DELTA: -$DELTA%" >> "$LOG_FILE"
 
 IS_BATT=false
 pmset -g batt | grep -q "Battery Power" && IS_BATT=true
 
+APPS_KILLED="$HOME/.sleep_killed_apps"
 if [ -f "$APPS_KILLED" ]; then
     while read -r app; do
         [ -z "$app" ] && continue
         if [ "$IS_BATT" = true ] && [[ "$HEAVY_APPS" =~ "$app" ]]; then
-            echo "$app" >> "$APPS_PENDING"
-            log_message "⏳ POSTICIPATO: $app (Batteria)"
+            echo "  [POSTPONE] $app (Eco-Wake)" >> "$LOG_FILE"
         else
-            open -a "$app" && log_message "✅ RIAPERTO: $app"
+            open -a "$app" && echo "  [RESTORE] $app" >> "$LOG_FILE"
         fi
     done < "$APPS_KILLED"
     rm "$APPS_KILLED"
 fi
-log_message "☀️ Sistema Sveglio."
+echo "==== SESSION_END ====" >> "$LOG_FILE"

@@ -1,14 +1,12 @@
-# 🔋 macOS Sleep Manager v4.2
+# 🔋 macOS Sleep Manager v4.4
 
-Software intelligente per il risparmio batteria su macOS.
+Gestore intelligente del risparmio energetico per Mac.
 
-## ✨ Caratteristiche
-- **Smart Dashboard**: Log puliti e ordinati dell'ultima attività.
-- **Config Editor**: Gestisci le tue preferenze con il comando `sleepconf`.
-- **Eco-Wake**: Riapre le app pesanti solo quando sei collegato alla corrente.
+## 🚀 Funzioni Core
+- **Deep Scan**: Rileva automaticamente app pesanti (Teams, Docker, IDE).
+- **Eco-Wake**: Risparmia batteria non riaprendo app pesanti se non sei collegato alla corrente.
+- **Visual Log**: Dashboard colorata con statistiche di consumo reale.
 
-## 🚀 Quick Start
-1. Esegui `./install.sh`.
-2. Esegui `source ~/.zshrc` (o apri un nuovo terminale).
-3. Personalizza con `sleepconf`.
-4. Controlla lo stato con `sleeplog`.
+## 🛠 Comandi
+- `sleepconf`: Configurazione interattiva.
+- `sleeplog`: Stato e statistiche.
