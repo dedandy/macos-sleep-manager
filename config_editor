@@ -1,5 +1,5 @@
 #!/bin/bash
-# ~/.sleepmanager_editor - Interfaccia di configurazione v4.2
+# ~/.sleepmanager_editor - Interfaccia di configurazione v4.2.1
 
 CONF_FILE="$HOME/.sleepmanager.conf"
 
@@ -20,6 +20,36 @@ save_val() {
     sed -i.bak "s|^$var=.*|$var=\"$val\"|" "$CONF_FILE"
     rm "${CONF_FILE}.bak"
     load_conf
+}
+
+# Nuova funzione per gestire le liste (Heavy Apps e Whitelist)
+update_list() {
+    local var_name=$1
+    local current_val=$2
+    
+    echo -e "\n${CYAN}Modifica Lista: $var_name${NC}"
+    echo -e "Valore attuale: ${YELLOW}$current_val${NC}"
+    echo -e "1) Aggiungi elemento"
+    echo -e "2) Sovrascrivi/Reset totale"
+    echo -e "3) Torna indietro"
+    read -p "Scegli: " list_opt
+    
+    case $list_opt in
+        1)
+            read -p "Inserisci nome app da aggiungere: " new_item
+            if [ -z "$current_val" ]; then
+                save_val "$var_name" "$new_item"
+            else
+                # Aggiunge con il pipe | se non è vuoto
+                save_val "$var_name" "$current_val|$new_item"
+            fi
+            ;;
+        2)
+            read -p "Inserisci nuova lista completa (es. App1|App2): " new_list
+            save_val "$var_name" "$new_list"
+            ;;
+        *) return ;;
+    esac
 }
 
 show_menu() {
@@ -48,8 +78,8 @@ while true; do
         1) [[ "$ENABLE_NOTIFICATIONS" == "true" ]] && save_val "ENABLE_NOTIFICATIONS" "false" || save_val "ENABLE_NOTIFICATIONS" "true" ;;
         2) [[ "$SAFE_QUIT_MODE" == "true" ]] && save_val "SAFE_QUIT_MODE" "false" || save_val "SAFE_QUIT_MODE" "true" ;;
         3) read -p "Nuova soglia CPU (es. 2.0): " nc; save_val "CPU_THRESHOLD" "$nc" ;;
-        4) read -p "Nuova Whitelist (es. Music|VLC): " nw; save_val "WHITELIST" "$nw" ;;
-        5) read -p "Nuova Heavy Apps (es. Chrome|Docker): " nh; save_val "HEAVY_APPS" "$nh" ;;
+        4) update_list "WHITELIST" "$WHITELIST" ;;
+        5) update_list "HEAVY_APPS" "$HEAVY_APPS" ;;
         s|q) exit 0 ;;
         *) echo -e "${RED}Opzione non valida${NC}"; sleep 1 ;;
     esac
