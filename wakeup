@@ -1,5 +1,13 @@
 #!/bin/bash
-# ~/.wakeup v4.4
+# --- RIPRISTINO v4.5 ---
+# Riattiva i servizi di rete e le sveglie di prossimità
+# Questo assicura che il Wi-Fi torni subito attivo e stabile
+sudo pmset -a tcpkeepalive 1 proximitywake 1
+
+# Scongela i servizi di sicurezza (Malwarebytes, Logitech, ecc.)
+# Li facciamo ripartire subito così non noti rallentamenti
+pkill -CONT -f "RTProtectionDaemon|Malwarebytes|virus|security|Logi"
+
 LOG_FILE="$HOME/.sleeplog_history"
 BATT_START_FILE="$HOME/.sleep_batt_start"
 CONF_FILE="$HOME/.sleepmanager.conf"

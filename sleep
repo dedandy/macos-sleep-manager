@@ -1,24 +1,34 @@
-#!/bin/bash
-# ~/.sleep v4.4
-CONF_FILE="$HOME/.sleepmanager.conf"
-LOG_FILE="$HOME/.sleeplog_history"
-APPS_KILLED="$HOME/.sleep_killed_apps"
-[ -f "$CONF_FILE" ] && source "$CONF_FILE"
+# In ~/.sleep v4.5
+# Uccide i processi che solitamente bloccano l'ibernazione (es. update di sistema o print job rimasti appesi)
+pkill -f "softwareupdated"
+pkill -f "cupsd"
 
-# Cattura batteria alla chiusura
-BATT_START=$(pmset -g batt | grep -o "[0-9]*%" | head -1)
-echo "$BATT_START" > "$HOME/.sleep_batt_start"
+# Logga lo stato attuale per debug futuro
+echo "INFO: Stato prima dello sleep..." >> "$LOG_FILE"
+pmset -g assertions >> "$LOG_FILE"
 
-echo "==== SESSION_START $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG_FILE"
-echo "ACTION: SLEEP | BATT: $BATT_START" >> "$LOG_FILE"
+# Disattiva le sveglie di rete (elimina i Dark Wakes)
+sudo pmset -a tcpkeepalive 0 proximitywake 0
 
-ps -r -A -o %cpu,comm | sed '1d' | grep -v "^ *0.0" | while read -r cpu comm; do
+# Scansione processi filtrata solo per il tuo utente ($USER)
+# Questo evita di killare i demoni di sistema (root) che causano loop
+ps -u "$USER" -o %cpu,comm | sed '1d' | while read -r cpu comm; do
     app_name=$(basename -- "$comm")
-    if echo "$app_name" | grep -qE "Finder|loginwindow|WindowServer|$WHITELIST"; then continue; fi
+    
+    # SUPER WHITELIST: Proteggiamo i componenti vitali dell'interfaccia
+    if echo "$app_name" | grep -qE "Finder|loginwindow|WindowServer|ControlCenter|Dock|WallpaperAgent|WindowManager|$WHITELIST"; then continue; fi
+
+    # GESTIONE SICUREZZA: Congeliamo (STOP) invece di uccidere
+    if echo "$app_name" | grep -qE "RTProtectionDaemon|Malwarebytes|virus|security|Logi"; then
+        pkill -STOP -f "$app_name"
+        echo "  [FREEZE] $app_name (Sospeso)" >> "$LOG_FILE"
+        continue
+    fi
+
+    # KILL SELETTIVO: Solo app utente pesanti
     if (( $(echo "$cpu >= $CPU_THRESHOLD" | bc -l) )) || [[ "$HEAVY_APPS" =~ "$app_name" ]]; then
         echo "$app_name" >> "$APPS_KILLED"
         pkill -f "$app_name"
         echo "  [KILL] $app_name ($cpu%)" >> "$LOG_FILE"
     fi
 done
-echo "==== SESSION_END ====" >> "$LOG_FILE"
