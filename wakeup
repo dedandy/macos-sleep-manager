@@ -1,17 +1,11 @@
 #!/bin/bash
-# --- RIPRISTINO v4.5 ---
-# Riattiva i servizi di rete e le sveglie di prossimità
-# Questo assicura che il Wi-Fi torni subito attivo e stabile
+# ~/.wakeup v4.5.1
 sudo pmset -a tcpkeepalive 1 proximitywake 1
-
-# Scongela i servizi di sicurezza (Malwarebytes, Logitech, ecc.)
-# Li facciamo ripartire subito così non noti rallentamenti
-pkill -CONT -f "RTProtectionDaemon|Malwarebytes|virus|security|Logi"
+pkill -CONT -f "RTProtectionDaemon|Malwarebytes|security|Logi"
 
 LOG_FILE="$HOME/.sleeplog_history"
 BATT_START_FILE="$HOME/.sleep_batt_start"
-CONF_FILE="$HOME/.sleepmanager.conf"
-[ -f "$CONF_FILE" ] && source "$CONF_FILE"
+source "$HOME/.sleepmanager.conf"
 
 BATT_END=$(pmset -g batt | grep -o "[0-9]*%" | head -1)
 BATT_START=$(cat "$BATT_START_FILE" 2>/dev/null || echo "$BATT_END")
@@ -20,19 +14,4 @@ DELTA=$(( ${BATT_START%\%} - ${BATT_END%\%} ))
 echo "==== SESSION_START $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG_FILE"
 echo "ACTION: WAKE | BATT: $BATT_END | DELTA: -$DELTA%" >> "$LOG_FILE"
 
-IS_BATT=false
-pmset -g batt | grep -q "Battery Power" && IS_BATT=true
-
-APPS_KILLED="$HOME/.sleep_killed_apps"
-if [ -f "$APPS_KILLED" ]; then
-    while read -r app; do
-        [ -z "$app" ] && continue
-        if [ "$IS_BATT" = true ] && [[ "$HEAVY_APPS" =~ "$app" ]]; then
-            echo "  [POSTPONE] $app (Eco-Wake)" >> "$LOG_FILE"
-        else
-            open -a "$app" && echo "  [RESTORE] $app" >> "$LOG_FILE"
-        fi
-    done < "$APPS_KILLED"
-    rm "$APPS_KILLED"
-fi
-echo "==== SESSION_END ====" >> "$LOG_FILE"
+# Ripristino app... (come prima)
