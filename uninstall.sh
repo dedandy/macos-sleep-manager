@@ -1,9 +1,33 @@
 #!/bin/bash
-# uninstall.sh v4.5.2
-echo "Disinstallazione e ripristino parametri originali..."
+# uninstall.sh v4.6
+
+echo -e "\033[1;31mRimozione macOS Sleep Manager e ripristino totale...\033[0m"
+
+# 1. Ferma il servizio
 brew services stop sleepwatcher
-# Valori standard Apple: standby a 24 ore (86400), rete attiva
-sudo pmset -a hibernatemode 3 standby 1 standbydelayhigh 86400 standbydelaylow 86400 powernap 1 tcpkeepalive 1 proximitywake 1 ttyskeepawake 1
-rm -f "$HOME/sleep" "$HOME/wakeup" "$HOME/sleeplog" "$HOME/config_editor" "$HOME/.sleepmanager.conf"
-rm -f "$HOME/.sleeplog_history" "$HOME/.sleep_batt_start" "$HOME/.sleep_killed_apps"
-echo "Sistema ripristinato ai valori di fabbrica."
+
+# 2. Ripristino parametri originali Apple (Standby lungo e rete attiva)
+sudo pmset -a hibernatemode 3
+sudo pmset -a standby 1
+sudo pmset -a standbydelayhigh 86400
+sudo pmset -a standbydelaylow 86400
+sudo pmset -a powernap 1
+sudo pmset -a tcpkeepalive 1
+sudo pmset -a proximitywake 1
+sudo pmset -a ttyskeepawake 1
+
+# 3. Rimozione file eseguibili e config
+rm -f "$HOME/.sleep"
+rm -f "$HOME/.wakeup"
+rm -f "$HOME/.sleeplog"
+rm -f "$HOME/.sleepmanager_editor"
+rm -f "$HOME/.sleepmanager.conf"
+
+# 4. Pulizia file temporanei e log
+rm -f "$HOME/.sleeplog_history"
+rm -f "$HOME/.sleep_batt_start"
+rm -f "$HOME/.wake_batt_info"        # File v4.6
+rm -f "$HOME/.sleep_killed_apps"
+rm -f "$HOME/.sleep_pending_apps"
+
+echo "Disinstallazione completata. Il Mac è tornato alle impostazioni di fabbrica."

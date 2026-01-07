@@ -1,28 +1,40 @@
 #!/bin/bash
-# ~/.sleep v4.5.2
-LOG_FILE="$HOME/.sleeplog_history"
+# ~/.sleep v4.6
 CONF_FILE="$HOME/.sleepmanager.conf"
+LOG_FILE="$HOME/.sleeplog_history"
+WAKE_INFO_FILE="$HOME/.wake_batt_info"
 [ -f "$CONF_FILE" ] && source "$CONF_FILE"
 
-# Cattura batteria
-BATT_START=$(pmset -g batt | grep -o "[0-9]*%" | head -1)
-echo "$BATT_START" > "$HOME/.sleep_batt_start"
+# 1. Analisi uso attivo (Dall'ultimo Wake)
+BATT_SLEEP=$(pmset -g batt | grep -o "[0-9]*%" | head -1)
+WAKE_INFO=$(cat "$WAKE_INFO_FILE" 2>/dev/null)
+if [ -n "$WAKE_INFO" ]; then
+    WAKE_TS=$(echo "$WAKE_INFO" | cut -d'|' -f1)
+    WAKE_BATT=$(echo "$WAKE_INFO" | cut -d'|' -f2)
+    NOW_TS=$(date +%s)
+    DIFF_MIN=$(( (NOW_TS - WAKE_TS) / 60 ))
+    USAGE=$(( ${WAKE_BATT%\%} - ${BATT_SLEEP%\%} ))
+    
+    echo "==== SESSION_START $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG_FILE"
+    echo "ACTION: SLEEP | BATT: $BATT_SLEEP | AWAKE: ${DIFF_MIN}m | USED: -${USAGE}%" >> "$LOG_FILE"
+else
+    echo "==== SESSION_START $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG_FILE"
+    echo "ACTION: SLEEP | BATT: $BATT_SLEEP" >> "$LOG_FILE"
+fi
 
-# Debug Assersioni: uccidiamo chi impedisce lo sleep profondo
-pkill -f "softwareupdated" 
-pkill -f "cupsd" # Processi di stampa rimasti appesi
+# Salva batteria per il prossimo Wake
+echo "$BATT_SLEEP" > "$HOME/.sleep_batt_start"
 
-echo "==== SESSION_START $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG_FILE"
-echo "ACTION: SLEEP | BATT: $BATT_START" >> "$LOG_FILE"
+# 2. Ottimizzazione Kernel
+sudo pmset -a tcpkeepalive 0 proximitywake 0
+pkill -f "softwareupdated"
 
-# Congelamento e chiusura app (Solo Utente)
+# 3. Gestione Processi
 ps -u "$USER" -o %cpu,comm | sed '1d' | while read -r cpu comm; do
     app_name=$(basename -- "$comm")
-    if echo "$app_name" | grep -qE "Finder|WindowServer|ControlCenter|Dock|WallpaperAgent|WindowManager|$WHITELIST"; then continue; fi
-    
+    if echo "$app_name" | grep -qE "Finder|WindowServer|ControlCenter|Dock|WallpaperAgent|$WHITELIST"; then continue; fi
     if echo "$app_name" | grep -qE "RTProtectionDaemon|Malwarebytes|Logi|security"; then
         pkill -STOP -f "$app_name"
-        echo "  [FREEZE] $app_name" >> "$LOG_FILE"
     elif (( $(echo "$cpu >= $CPU_THRESHOLD" | bc -l) )) || [[ "$HEAVY_APPS" =~ "$app_name" ]]; then
         echo "$app_name" >> "$HOME/.sleep_killed_apps"
         pkill -9 -f "$app_name"
