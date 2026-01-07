@@ -1,0 +1,19 @@
+cat << 'EOF' > ~/.config_editor_auto
+#!/bin/bash
+CONF_FILE="$HOME/.sleepmanager.conf"
+LIST_TYPE=$1 
+SCPT_FILE="$HOME/.selector.scpt"
+FILE_PATH=$(osascript "$SCPT_FILE" 2>/dev/null)
+[ -z "$FILE_PATH" ] && exit 0
+APP_NAME=$(basename "$FILE_PATH" .app)
+if [ -f "$CONF_FILE" ]; then
+    source "$CONF_FILE"
+    CURRENT_VAL=${!LIST_TYPE}
+    [[ "$CURRENT_VAL" == *"$APP_NAME"* ]] && exit 0
+    [ -z "$CURRENT_VAL" ] && NEW_VAL="$APP_NAME" || NEW_VAL="$CURRENT_VAL|$APP_NAME"
+    sed -i.bak "s|^$LIST_TYPE=.*|$LIST_TYPE=\"$NEW_VAL\"|" "$CONF_FILE"
+    rm "${CONF_FILE}.bak"
+fi
+EOF
+
+chmod +x ~/.config_editor_auto
