@@ -1,19 +1,87 @@
-cat << 'EOF' > ~/.config_editor_auto
 #!/bin/bash
-CONF_FILE="$HOME/.sleepmanager.conf"
-LIST_TYPE=$1 
-SCPT_FILE="$HOME/.selector.scpt"
-FILE_PATH=$(osascript "$SCPT_FILE" 2>/dev/null)
-[ -z "$FILE_PATH" ] && exit 0
-APP_NAME=$(basename "$FILE_PATH" .app)
-if [ -f "$CONF_FILE" ]; then
-    source "$CONF_FILE"
-    CURRENT_VAL=${!LIST_TYPE}
-    [[ "$CURRENT_VAL" == *"$APP_NAME"* ]] && exit 0
-    [ -z "$CURRENT_VAL" ] && NEW_VAL="$APP_NAME" || NEW_VAL="$CURRENT_VAL|$APP_NAME"
-    sed -i.bak "s|^$LIST_TYPE=.*|$LIST_TYPE=\"$NEW_VAL\"|" "$CONF_FILE"
-    rm "${CONF_FILE}.bak"
-fi
-EOF
+# ~/.config_editor_auto v2.1 - SwiftBar Compatible con logging
 
-chmod +x ~/.config_editor_auto
+CONF_FILE="$HOME/.sleepmanager.conf"
+LIST_TYPE=$1
+LOG_FILE="$HOME/.sleepmanager_gui.log"
+
+# Log per debug
+echo "$(date): Chiamato con LIST_TYPE=$LIST_TYPE" >> "$LOG_FILE"
+
+# Se chiamato senza argomento, esci
+if [ -z "$LIST_TYPE" ]; then
+    echo "$(date): ERRORE - Nessun argomento" >> "$LOG_FILE"
+    osascript -e 'display notification "Errore: parametro mancante" with title "Sleep Manager"'
+    exit 1
+fi
+
+# Verifica che il config esista
+if [ ! -f "$CONF_FILE" ]; then
+    echo "$(date): ERRORE - Config non trovato" >> "$LOG_FILE"
+    osascript -e 'display notification "File di configurazione mancante" with title "Sleep Manager"'
+    exit 1
+fi
+
+# Log: tentativo apertura dialogo
+echo "$(date): Apertura dialogo AppleScript..." >> "$LOG_FILE"
+
+# AppleScript per selezione file - Con gestione errori migliorata
+FILE_PATH=$(osascript 2>&1 <<'EOF'
+tell application "System Events"
+    activate
+end tell
+
+delay 0.5
+
+tell application "Finder"
+    activate
+    try
+        set selectedFile to choose file with prompt "Seleziona un'Applicazione" of type {"com.apple.application-bundle"} default location (path to applications folder)
+        return POSIX path of selectedFile
+    on error errMsg
+        return ""
+    end try
+end tell
+EOF
+)
+
+echo "$(date): Risultato selezione: '$FILE_PATH'" >> "$LOG_FILE"
+
+# Se l'utente annulla, esci
+if [ -z "$FILE_PATH" ] || [ "$FILE_PATH" = "" ]; then
+    echo "$(date): Utente ha annullato" >> "$LOG_FILE"
+    exit 0
+fi
+
+# Estrae il nome dell'app
+APP_NAME=$(basename "$FILE_PATH" .app)
+echo "$(date): App estratta: $APP_NAME" >> "$LOG_FILE"
+
+# Carica config attuale
+source "$CONF_FILE"
+CURRENT_VAL="${!LIST_TYPE}"
+
+# Verifica duplicati
+if [[ "$CURRENT_VAL" == *"$APP_NAME"* ]]; then
+    echo "$(date): App già presente" >> "$LOG_FILE"
+    osascript -e "display notification \"$APP_NAME è già in $LIST_TYPE\" with title \"Sleep Manager\" sound name \"Basso\""
+    exit 0
+fi
+
+# Aggiunge l'app
+if [ -z "$CURRENT_VAL" ]; then
+    NEW_VAL="$APP_NAME"
+else
+    NEW_VAL="$CURRENT_VAL|$APP_NAME"
+fi
+
+# Scrive nel config
+sed -i.bak "s|^$LIST_TYPE=.*|$LIST_TYPE=\"$NEW_VAL\"|" "$CONF_FILE"
+rm -f "${CONF_FILE}.bak"
+
+echo "$(date): Successo - $APP_NAME aggiunto a $LIST_TYPE" >> "$LOG_FILE"
+
+# Notifica successo
+osascript -e "display notification \"$APP_NAME aggiunto a $LIST_TYPE\" with title \"Sleep Manager\" sound name \"Glass\""
+
+exit 0

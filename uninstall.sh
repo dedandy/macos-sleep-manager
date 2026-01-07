@@ -23,7 +23,7 @@ rm -f "$HOME/.sleeplog"
 rm -f "$HOME/.sleepmanager_editor"
 rm -f "$HOME/.sleepmanager.conf"
 rm -f "$HOME/.config_editor_auto"
-rm -f "$HOME/.selector.scpt"
+# rm -f "$HOME/.selector.scpt"
 
 # 4. Pulizia file temporanei e log
 rm -f "$HOME/.sleeplog_history"
