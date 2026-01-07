@@ -1,37 +1,48 @@
 ---
 
-### 2. `help.md` (Manuale Tecnico e Risoluzione Problemi)
+### 2. `help.md`
 
 ```markdown
-# 📖 Guida Tecnica v4.5.2 - Deep Sleep & Hard Freeze
+# 📖 Manuale Tecnico v4.6.1 - Deep Sleep & Full Transparency
 
-Questa guida spiega come il sistema interagisce con il kernel di macOS per ottenere un consumo dello 0% durante le lunghe sessioni di sleep.
+Questa guida spiega le logiche avanzate utilizzate dalla versione 4.6.1 per abbattere il consumo energetico e fornire una visibilità totale sull'uso della batteria.
 
 ---
 
 ## ⚡️ Ciclo Energetico Smart
-Per evitare la fastidiosa barra di caricamento nelle brevi pause, la v4.5.2 usa una logica temporizzata:
+Il sistema bilancia risveglio istantaneo e risparmio estremo:
 1. **Sleep Rapido (0-60 min)**: Il Mac resta in `hibernatemode 3`. La RAM è alimentata, il risveglio è immediato.
-2. **Deep Freeze (> 60 min)**: Superata l'ora, il sistema passa automaticamente in **Standby Profondo**. La RAM viene scritta su disco e spenta. Al risveglio apparirà una barra di caricamento: questo è il segnale che la batteria è stata preservata al 100%.
+2. **Deep Freeze (> 60 min)**: Superata l'ora, il sistema passa in **Standby Profondo**. La RAM viene scritta su disco e spenta. Al risveglio apparirà una barra di caricamento: segnale che la batteria è stata preservata al 100%.
 
-## 🔍 Logiche di Intervento
-### Isolamento di Rete
-Il comando `tcpkeepalive 0` inserito nello script `sleep` è cruciale. Impedisce a macOS di svegliarsi silenziosamente ogni 15 minuti per controllare email o notifiche, una delle cause primarie del drenaggio notturno.
-
-### Pulizia delle "Assersioni"
-Alcuni processi (es. `cupsd` per la stampa o `softwareupdated`) possono creare "Assersioni" che dicono al kernel di non entrare mai in Deep Sleep. Lo script `sleep` ora pulisce forzatamente questi blocchi prima di ogni sospensione.
-
-### Sospensione vs Chiusura
-- **App Utente**: Se superano la soglia CPU o sono in `HEAVY_APPS`, vengono chiuse (`pkill -9`).
-- **Driver e Sicurezza**: Processi come Malwarebytes o agenti Logitech vengono "congelati" (`SIGSTOP`). Questo impedisce loro di consumare energia senza causare il crash dell'app.
+**Perché disattivare il TCPKeepAlive?**
+macOS si sveglia solitamente ogni 15-30 minuti per controllare email e notifiche (Dark Wakes). Disattivandolo, eliminiamo questi micro-risvegli, risolvendo cali tipici del 5-10% a notte.
 
 ---
 
-## 📊 Interpretazione dei Log
-Eseguendo `sleeplog`, potresti leggere:
-- `DELTA: 0% (PERFETTO)`: Il sistema è entrato in ibernazione totale. Il consumo è nullo.
-- `[FREEZE]`: Un processo è stato sospeso correttamente.
-- `[POSTPONE]`: Un'app pesante è rimasta chiusa al risveglio perché sei a batteria (Eco-Wake).
+## 🕵️‍♂️ Monitoraggio della Veglia (Novità v4.6)
+Per risolvere il mistero dei cali di batteria "improvvisi", il sistema ora registra:
+- **AWAKE TIME**: Quanto tempo il Mac è stato utilizzato tra l'ultima apertura e l'ultima chiusura.
+- **USED BATTERY**: Quanta percentuale di carica è stata consumata durante l'uso attivo.
+- **DELTA SLEEP**: La perdita reale avvenuta esclusivamente mentre il coperchio era chiuso.
 
-## 🔐 Sicurezza e Manutenzione
-Se i log smettono di aggiornarsi, assicurati che `sleepwatcher` abbia l'**Accesso completo al disco** nelle Impostazioni di Sistema. In caso di instabilità, usa `./uninstall.sh` per riportare il Mac ai valori originali Apple.
+---
+
+## 🔍 Gestione dei Processi
+### Super Whitelist di Sistema
+Lo script ignora i processi `root` critici e si concentra esclusivamente sui processi dell'utente (`ps -u $USER`), evitando di entrare in conflitto con il kernel di macOS e garantendo stabilità.
+
+### Congelamento (SIGSTOP/SIGCONT)
+App di sicurezza e Driver (es. Malwarebytes, Logi Options) non vengono chiusi ma "congelati":
+- **Allo Sleep**: Il processo viene sospeso. Rimane in RAM ma non consuma cicli CPU.
+- **Al Wake**: Il processo viene riattivato istantaneamente senza dover essere ricaricato.
+
+---
+
+## 📊 Interpretazione dei Log (`sleeplog`)
+- **Verde**: `DELTA SLEEP: 0% (PERFETTO)` - L'ibernazione è scattata e il consumo è stato nullo.
+- **Ciano**: `TEMPO ACCESO` - Indica i minuti di utilizzo reale.
+- **Giallo**: `USO` - La batteria consumata mentre usavi il Mac o prima del Deep Freeze.
+
+## 🔐 Sicurezza e Permessi
+Affinché il sistema funzioni, `sleepwatcher` deve avere l'**Accesso completo al disco** (Privacy e Sicurezza). In caso di problemi di esecuzione, l'installer applica automaticamente la firma digitale:
+`sudo codesign --force --deep --sign - $(which sleepwatcher)`

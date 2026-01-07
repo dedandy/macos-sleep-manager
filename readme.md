@@ -1,16 +1,88 @@
-# 🔋 macOS Sleep Manager v4.5.2 "Final Polish"
+# macOS Sleep Manager v4.6 "Full Transparency"
 
-**macOS Sleep Manager** è un'utility avanzata per ottimizzare il risparmio energetico dei MacBook. Progettata per eliminare il drenaggio della batteria durante la sospensione, trasforma la gestione del sonno di macOS in un sistema a risparmio garantito.
+macOS Sleep Manager is an advanced utility for MacBook designed to drastically reduce battery consumption during standby. Unlike macOS's standard management, this tool forces the system into a Deep Freeze state and monitors energy efficiency both during sleep and active use.
 
-## ✨ Novità della v4.5.2
-- **Smart Deep Freeze**: Bilanciamento automatico tra risveglio istantaneo (entro 60 min) e ibernazione totale (dopo 1 ora).
-- **Zero Dark Wakes**: Disabilitazione completa di `tcpkeepalive` durante lo sleep per impedire al Wi-Fi di consumare energia a coperchio chiuso.
-- **Hard Assertion Clean**: Chiusura forzata dei processi di sistema rimasti appesi (stampa, update) che impediscono lo standby profondo.
-- **Logica "Freeze"**: Driver e servizi di sicurezza vengono sospesi (SIGSTOP) anziché terminati, garantendo stabilità al riavvio.
+## ✨ Key Features (v4.6)
 
-## 🚀 Installazione
-1. Clona il repository.
-2. Esegui l'installer:
-   ```bash
-   chmod +x install.sh
-   ./install.sh
+### 🧊 Hard Deep Freeze
+- **Smart Hibernation**: Balance between instant wake (within 60 min) and total hibernation (after 1 hour), where RAM is powered off and saved to disk for 0% consumption.
+
+- **Zero Dark Wakes**: Disables tcpkeepalive during sleep. Prevents the Mac from waking every 15 minutes to search for Wi-Fi networks or download notifications while the lid is closed.
+
+- **Assertion Cleaner**: Force-closes blocking processes (such as print services or suspended updates) that prevent the kernel from entering deep standby.
+
+### 🕵️‍♂️ "Black Box" Monitoring (Full Transparency)
+- **Wake Tracking**: New in v4.6. The script records how long the Mac stays on and how much battery is consumed during actual use.
+
+- **Sleep Delta**: Mathematical calculation of charge loss during suspension. If you read DELTA: 0%, the system was perfectly efficient.
+
+- **Driver Freeze**: Logitech drivers or security software (Malwarebytes) are "frozen" (SIGSTOP) at sleep and "unfrozen" (SIGCONT) at wake, avoiding restart loops.
+
+## 🚀 Installation
+
+**Requirements**: Make sure you have sleepwatcher installed:
+
+```bash
+brew install sleepwatcher
+```
+
+**Clone & Install**:
+
+```bash
+git clone https://github.com/dedandy/macos-sleep-manager.git
+cd macos-sleep-manager
+chmod +x install.sh
+./install.sh
+```
+
+**Activation**:
+
+```bash
+source ~/.zshrc
+```
+
+## 🛠 Available Commands
+
+### sleeplog
+The main dashboard. Shows the latest Sleep/Wake cycles, indicating:
+- Battery at close/open
+- Awake time
+- Battery used
+- Sleep Delta
+
+### sleeplog stats
+Generates an efficiency report that sums total usage time and average consumption, helping you understand if battery drops are due to active use or standby issues.
+
+### sleepconf
+Opens the interactive editor to manage:
+- **Whitelist**: Apps that should never be closed (e.g., Messaging)
+- **Heavy Apps**: Apps that are killed at sleep and reopened only if the charger is connected
+- **CPU Threshold**: Sensitivity for automatic termination of runaway processes
+
+## 🔐 Security and Permissions
+
+For proper functionality, macOS requires sleepwatcher to have elevated permissions:
+
+1. Go to **System Settings > Privacy & Security > Full Disk Access**
+2. Make sure sleepwatcher is enabled
+
+If logs don't update, the installer automatically performs digital signing, but you can force it with:
+
+```bash
+sudo codesign --force --deep --sign - $(which sleepwatcher)
+```
+
+## 🗑 Uninstallation
+
+To restore your Mac to original factory settings (restoring system timers and standard network functions):
+
+```bash
+chmod +x uninstall.sh
+./uninstall.sh
+```
+
+## 📄 License
+
+Distributed under the MIT License. Free to use and modify.
+
+Developed for those who demand their Mac doesn't lose even 1% charge overnight.
