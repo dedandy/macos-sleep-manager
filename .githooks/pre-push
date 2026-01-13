@@ -8,9 +8,19 @@ fi
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 [ -n "$REPO_ROOT" ] || exit 0
 
-# Warn if the last commit did not touch the version file
-if ! git diff --name-only HEAD~1..HEAD 2>/dev/null | grep -q "^version.sh$"; then
-  echo "Pre-push: version.sh was not updated in the last commit." >&2
-  echo "Run scripts/bump-version.sh or set SKIP_VERSION_BUMP=1 to bypass." >&2
-  exit 1
-fi
+"$REPO_ROOT/scripts/bump-version.sh" patch
+
+git add "$REPO_ROOT/version.sh" \
+  "$REPO_ROOT/sleep" \
+  "$REPO_ROOT/wakeup" \
+  "$REPO_ROOT/sleeplog" \
+  "$REPO_ROOT/install.sh" \
+  "$REPO_ROOT/uninstall.sh" \
+  "$REPO_ROOT/MASTER_INSTALL.sh" \
+  "$REPO_ROOT/SleepManager.1m.sh" \
+  "$REPO_ROOT/config_editor" \
+  "$REPO_ROOT/config_editor_auto" \
+  "$REPO_ROOT/config.template"
+
+version=$(grep -E '^SM_VERSION=' "$REPO_ROOT/version.sh" | cut -d'"' -f2)
+git commit -m "chore: bump version to $version"
