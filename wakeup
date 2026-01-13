@@ -1,11 +1,14 @@
 #!/bin/bash
 # ~/.wakeup v4.6
 CONF_FILE="$HOME/.sleepmanager.conf"
+VERSION_FILE="$HOME/.sleepmanager_version"
 LOG_FILE="$HOME/.sleeplog_history"
 BATT_START_FILE="$HOME/.sleep_batt_start"
 WAKE_INFO_FILE="$HOME/.wake_batt_info"
+RESTORE_SCRIPT="$HOME/.sleepmanager_restore"
 
 [ -f "$CONF_FILE" ] && source "$CONF_FILE"
+[ -f "$VERSION_FILE" ] && source "$VERSION_FILE"
 
 # Riattiva rete e scongela processi
 sudo pmset -a tcpkeepalive 1 proximitywake 1
@@ -36,5 +39,10 @@ if [ -f "$APPS_KILLED" ]; then
         fi
     done < "$APPS_KILLED"
     rm "$APPS_KILLED"
+fi
+
+# Restore user apps and Terminal sessions
+if [ -x "$RESTORE_SCRIPT" ]; then
+    "$RESTORE_SCRIPT" --wake
 fi
 echo "==== SESSION_END ====" >> "$LOG_FILE"

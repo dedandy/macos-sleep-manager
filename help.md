@@ -1,48 +1,195 @@
----
+# Manuale Tecnico - macOS Sleep Manager
 
-### 2. `help.md`
+Questa guida raccoglie tutte le opzioni disponibili, gli snippet di uso da terminale e le note operative per la versione corrente.
 
-```markdown
-# 📖 Manuale Tecnico v4.6.1 - Deep Sleep & Full Transparency
+## Obiettivo
 
-Questa guida spiega le logiche avanzate utilizzate dalla versione 4.6.1 per abbattere il consumo energetico e fornire una visibilità totale sull'uso della batteria.
+- Ridurre il consumo in standby con deep sleep e zero dark wakes.
+- Tracciare i cicli sleep/wake e separare il consumo reale da quello in standby.
+- Gestire processi problematici, heavy apps e whitelist.
+- Ripristinare le app principali al wake e al login (best effort).
 
----
+## Architettura (sintesi)
 
-## ⚡️ Ciclo Energetico Smart
-Il sistema bilancia risveglio istantaneo e risparmio estremo:
-1. **Sleep Rapido (0-60 min)**: Il Mac resta in `hibernatemode 3`. La RAM è alimentata, il risveglio è immediato.
-2. **Deep Freeze (> 60 min)**: Superata l'ora, il sistema passa in **Standby Profondo**. La RAM viene scritta su disco e spenta. Al risveglio apparirà una barra di caricamento: segnale che la batteria è stata preservata al 100%.
+- `sleep`: eseguito all'evento di sleep, applica ottimizzazioni e logga il consumo.
+- `wakeup`: eseguito al wake, ripristina rete/processi e logga la sessione.
+- `sleeplog`: visualizza le statistiche e l'ultimo storico.
+- `~/.sleepmanager.conf`: unica fonte di configurazione.
 
-**Perché disattivare il TCPKeepAlive?**
-macOS si sveglia solitamente ogni 15-30 minuti per controllare email e notifiche (Dark Wakes). Disattivandolo, eliminiamo questi micro-risvegli, risolvendo cali tipici del 5-10% a notte.
+## Configurazione Completa
 
----
+File attivo:
 
-## 🕵️‍♂️ Monitoraggio della Veglia (Novità v4.6)
-Per risolvere il mistero dei cali di batteria "improvvisi", il sistema ora registra:
-- **AWAKE TIME**: Quanto tempo il Mac è stato utilizzato tra l'ultima apertura e l'ultima chiusura.
-- **USED BATTERY**: Quanta percentuale di carica è stata consumata durante l'uso attivo.
-- **DELTA SLEEP**: La perdita reale avvenuta esclusivamente mentre il coperchio era chiuso.
+```bash
+~/.sleepmanager.conf
+```
 
----
+Opzioni principali:
 
-## 🔍 Gestione dei Processi
-### Super Whitelist di Sistema
-Lo script ignora i processi `root` critici e si concentra esclusivamente sui processi dell'utente (`ps -u $USER`), evitando di entrare in conflitto con il kernel di macOS e garantendo stabilità.
+```bash
+ENABLE_NOTIFICATIONS=true
+SAFE_QUIT_MODE=true
+CPU_THRESHOLD=1.0
+WHITELIST="App A|App B"
+HEAVY_APPS="App A|App B"
+RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal"
+RESTORE_TERMINAL_MAX=6
+```
 
-### Congelamento (SIGSTOP/SIGCONT)
-App di sicurezza e Driver (es. Malwarebytes, Logi Options) non vengono chiusi ma "congelati":
-- **Allo Sleep**: Il processo viene sospeso. Rimane in RAM ma non consuma cicli CPU.
-- **Al Wake**: Il processo viene riattivato istantaneamente senza dover essere ricaricato.
+Dettagli:
 
----
+- `ENABLE_NOTIFICATIONS`: abilita/disabilita notifiche (se previste dagli script).
+- `SAFE_QUIT_MODE`: chiusura controllata vs forzata dei processi.
+- `CPU_THRESHOLD`: soglia CPU (percento) oltre la quale un processo puo' essere chiuso allo sleep.
+- `WHITELIST`: app sempre protette dalla chiusura.
+- `HEAVY_APPS`: app chiuse allo sleep e riaperte al wake solo se su alimentazione.
+- `RESTORE_APPS`: app riaperte al wake e al login se non sono gia' in esecuzione.
+- `RESTORE_TERMINAL_MAX`: numero massimo di tab ripristinate nel Terminale.
 
-## 📊 Interpretazione dei Log (`sleeplog`)
-- **Verde**: `DELTA SLEEP: 0% (PERFETTO)` - L'ibernazione è scattata e il consumo è stato nullo.
-- **Ciano**: `TEMPO ACCESO` - Indica i minuti di utilizzo reale.
-- **Giallo**: `USO` - La batteria consumata mentre usavi il Mac o prima del Deep Freeze.
+## Restore Apps (Wake/Login)
 
-## 🔐 Sicurezza e Permessi
-Affinché il sistema funzioni, `sleepwatcher` deve avere l'**Accesso completo al disco** (Privacy e Sicurezza). In caso di problemi di esecuzione, l'installer applica automaticamente la firma digitale:
-`sudo codesign --force --deep --sign - $(which sleepwatcher)`
+Il ripristino usa `~/.sleepmanager_restore`.
+
+- Se Terminale e' gia' aperto con almeno una finestra, non crea nuovi tab.
+- Se Terminale non ha finestre aperte, ripristina fino a `RESTORE_TERMINAL_MAX` directory.
+
+Esecuzione manuale:
+
+```bash
+~/.sleepmanager_restore --manual
+```
+
+## Uso da Terminale
+
+Installazione:
+
+```bash
+./install.sh
+```
+
+Reinstall/Upgrade pulito:
+
+```bash
+./uninstall.sh && ./install.sh
+```
+
+Log rapido:
+
+```bash
+sleeplog
+sleeplog stats
+sleeplog stats today
+```
+
+Verifica config:
+
+```bash
+./test_config.sh
+cat ~/.sleepmanager.conf
+```
+
+Snapshot pmset (prima/dopo):
+
+```bash
+pmset -g custom
+```
+
+## SwiftBar
+
+Per la menubar:
+
+```bash
+cp SleepManager.1m.sh ~/SwiftBar-Plugins/
+```
+
+Se usi un symlink e il menu non appare, preferisci il file reale nella cartella plugin.
+
+## Log Format
+
+I log principali sono in:
+
+```bash
+~/.sleeplog_history
+```
+
+Esempi di righe:
+
+```text
+ACTION: SLEEP | BATT: 78% | AWAKE: 43m | USED: -6%
+ACTION: WAKE | BATT: 72% | DELTA: -0% (SLEEP LOSS)
+```
+
+- `AWAKE`: minuti di uso attivo tra wake e sleep.
+- `USED`: batteria consumata durante uso attivo.
+- `DELTA`: perdita reale in standby.
+
+## Legenda Colori (SwiftBar)
+
+- Verde: `DELTA SLEEP 0%` (sleep perfetto, nessuna perdita).
+- Blu: perdita in standby rilevata (es. `-3%`).
+- Ciano: blocco "Ultimi Eventi".
+- Arancione: heavy apps.
+- Verde chiaro: whitelist protette.
+- Grigio: valori informativi o non disponibili.
+
+## Percorsi Installati
+
+| Scopo | Path |
+| --- | --- |
+| Hook sleep | `~/.sleep` |
+| Hook wake | `~/.wakeup` |
+| Viewer log | `~/.sleeplog` |
+| Editor config | `~/.sleepmanager_editor` |
+| Helper editor | `~/.config_editor_auto` |
+| Restore script | `~/.sleepmanager_restore` |
+| Config | `~/.sleepmanager.conf` |
+| Storico log | `~/.sleeplog_history` |
+| Batteria sleep | `~/.sleep_batt_start` |
+| Info wake | `~/.wake_batt_info` |
+| Lista kill | `~/.sleep_killed_apps` |
+| Cache dirs | `~/.sleepmanager_terminal_dirs` |
+| LaunchAgent | `~/Library/LaunchAgents/com.sleepmanager.restore.plist` |
+
+## FAQ
+
+**La menubar e' vuota**
+
+- Usa un file reale (no symlink) dentro `~/SwiftBar-Plugins`.
+- Esegui lo script manualmente per vedere eventuali errori:
+  ```bash
+  ~/SwiftBar-Plugins/SleepManager.1m.sh
+  ```
+
+**Le app non si ripristinano**
+
+- Verifica `RESTORE_APPS` in `~/.sleepmanager.conf`.
+- Controlla il LaunchAgent:
+  ```bash
+  launchctl list | grep com.sleepmanager.restore
+  ```
+
+**I log non si aggiornano**
+
+- Controlla permessi Full Disk Access a `sleepwatcher`.
+- Verifica che `~/.sleep` e `~/.wakeup` siano eseguibili.
+
+## Troubleshooting
+
+- Se i log non si aggiornano, verifica i permessi di `sleepwatcher`.
+- Se le app non si ripristinano, controlla `RESTORE_APPS` e il LaunchAgent.
+
+LaunchAgent:
+
+```bash
+launchctl list | grep com.sleepmanager.restore
+```
+
+## Disinstallazione
+
+```bash
+./uninstall.sh
+```
+
+## Note su Sicurezza e Permessi
+
+Concedi Full Disk Access a `sleepwatcher` per garantire l'accesso ai log e ai trigger di sistema.

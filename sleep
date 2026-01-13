@@ -1,9 +1,12 @@
 #!/bin/bash
 # ~/.sleep v4.6
 CONF_FILE="$HOME/.sleepmanager.conf"
+VERSION_FILE="$HOME/.sleepmanager_version"
 LOG_FILE="$HOME/.sleeplog_history"
 WAKE_INFO_FILE="$HOME/.wake_batt_info"
+TERMINAL_DIRS_FILE="$HOME/.sleepmanager_terminal_dirs"
 [ -f "$CONF_FILE" ] && source "$CONF_FILE"
+[ -f "$VERSION_FILE" ] && source "$VERSION_FILE"
 
 # 1. Analisi uso attivo (Dall'ultimo Wake)
 BATT_SLEEP=$(pmset -g batt | grep -o "[0-9]*%" | head -1)
@@ -24,6 +27,19 @@ fi
 
 # Salva batteria per il prossimo Wake
 echo "$BATT_SLEEP" > "$HOME/.sleep_batt_start"
+
+# Capture Terminal working directories for restore
+if pgrep -x "Terminal" >/dev/null 2>&1; then
+    : > "$TERMINAL_DIRS_FILE"
+    ttys=$(osascript -e 'tell application "Terminal" to get tty of every tab of every window' 2>/dev/null | tr -d '{}"' | tr ',' '\n' | tr -d ' ')
+    while IFS= read -r tty; do
+        [ -z "$tty" ] && continue
+        pid=$(ps -t "$tty" -o pid= 2>/dev/null | awk 'NR==1{print $1}')
+        [ -z "$pid" ] && continue
+        cwd=$(lsof -a -d cwd -p "$pid" 2>/dev/null | awk 'NR==2 {print $NF}')
+        [ -n "$cwd" ] && [ -d "$cwd" ] && echo "$cwd" >> "$TERMINAL_DIRS_FILE"
+    done <<< "$ttys"
+fi
 
 # 2. Ottimizzazione Kernel
 sudo pmset -a tcpkeepalive 0 proximitywake 0

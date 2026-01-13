@@ -1,18 +1,22 @@
 #!/bin/bash
-# install.sh v4.7.1 - Auto-configuration con scrittura diretta
+# install.sh v4.7.2 - Auto-configuration con scrittura diretta
 CYAN='\033[1;36m'; BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 CONF_FILE="$HOME/.sleepmanager.conf"
+VERSION_FILE="$HOME/.sleepmanager_version"
+LOCAL_VERSION_FILE="$(dirname "$0")/version.sh"
 
 echo -e "${BLUE}[1/4] Copia componenti...${NC}"
 cp sleep "$HOME/.sleep"
 cp wakeup "$HOME/.wakeup"
 cp sleeplog "$HOME/.sleeplog"
+cp restore_apps.sh "$HOME/.sleepmanager_restore"
+cp "$LOCAL_VERSION_FILE" "$VERSION_FILE"
 cp config_editor "$HOME/.sleepmanager_editor"
 cp config_editor_auto "$HOME/.config_editor_auto"
 cp install.sh "$HOME/.sleepmanager_install"
 
 chmod +x "$HOME/.sleep" "$HOME/.wakeup" "$HOME/.sleeplog" \
-         "$HOME/.sleepmanager_editor" "$HOME/.config_editor_auto" \
+         "$HOME/.sleepmanager_restore" "$HOME/.sleepmanager_editor" "$HOME/.config_editor_auto" "$VERSION_FILE" \
          "$HOME/.sleepmanager_install"
 
 echo -e "${BLUE}[2/4] Scansione applicazioni...${NC}"
@@ -44,7 +48,7 @@ echo -e "${BLUE}[3/4] Creazione configurazione...${NC}"
 
 # SCRITTURA DIRETTA del file config (non usa sed)
 cat > "$CONF_FILE" << EOF
-# macOS Sleep Manager v4.7.1 - Auto-Generated Config
+# macOS Sleep Manager v4.7.2 - Auto-Generated Config
 # Generato il: $(date '+%Y-%m-%d %H:%M:%S')
 
 # --- IMPOSTAZIONI GENERALI ---
@@ -58,6 +62,12 @@ WHITELIST="$WHITELIST_STR"
 
 # Heavy Apps: Chiuse allo sleep, riaperte solo se c'è corrente
 HEAVY_APPS="$HEAVY_STR"
+
+# Restore Apps: Riaperte al wake/login se non sono in esecuzione
+RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal"
+
+# Restore Terminal: massimo numero di tab da ripristinare
+RESTORE_TERMINAL_MAX=6
 EOF
 
 # Verifica che il file sia stato scritto correttamente
@@ -76,7 +86,30 @@ sudo pmset -a tcpkeepalive 0 proximitywake 0 standby 1 standbydelayhigh 3600
 sudo codesign --force --deep --sign - $(which sleepwatcher) 2>/dev/null
 brew services restart sleepwatcher
 
-echo -e "${BLUE}[5/5] Verifica alias...${NC}"
+echo -e "${BLUE}[5/5] Setup ripristino app al login...${NC}"
+RESTORE_AGENT="$HOME/Library/LaunchAgents/com.sleepmanager.restore.plist"
+cat > "$RESTORE_AGENT" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sleepmanager.restore</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>$HOME/.sleepmanager_restore</string>
+        <string>--login</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+EOF
+launchctl unload "$RESTORE_AGENT" >/dev/null 2>&1
+launchctl load "$RESTORE_AGENT" >/dev/null 2>&1
+
+echo -e "${BLUE}[6/6] Verifica alias...${NC}"
 if ! grep -q "alias sleeplog=" "$HOME/.zshrc" 2>/dev/null; then
     cat >> "$HOME/.zshrc" << 'EOFZSH'
 

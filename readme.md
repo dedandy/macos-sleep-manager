@@ -1,32 +1,27 @@
-# macOS Sleep Manager v4.6 "Full Transparency"
+# macOS Sleep Manager
 
-macOS Sleep Manager is an advanced utility for MacBook designed to drastically reduce battery consumption during standby. Unlike macOS's standard management, this tool forces the system into a Deep Freeze state and monitors energy efficiency both during sleep and active use.
+macOS Sleep Manager is a lightweight set of Bash scripts that improves standby behavior on MacBooks by enforcing deep sleep, logging real battery usage, and managing processes that prevent the system from sleeping correctly.
 
-## ✨ Key Features (v4.6)
+## Features
 
-### 🧊 Hard Deep Freeze
-- **Smart Hibernation**: Balance between instant wake (within 60 min) and total hibernation (after 1 hour), where RAM is powered off and saved to disk for 0% consumption.
+- Deep sleep optimization with reduced dark wakes.
+- Transparent logging for sleep/wake cycles and real usage time.
+- Automatic handling of heavy apps and user-defined whitelists.
+- Restore apps at wake/login (best effort), including Terminal working directories.
+- SwiftBar menu for quick status, configuration, and tools.
 
-- **Zero Dark Wakes**: Disables tcpkeepalive during sleep. Prevents the Mac from waking every 15 minutes to search for Wi-Fi networks or download notifications while the lid is closed.
+## Requirements
 
-- **Assertion Cleaner**: Force-closes blocking processes (such as print services or suspended updates) that prevent the kernel from entering deep standby.
+- macOS with `sleepwatcher` installed.
+- Permissions for `sleepwatcher` (Full Disk Access recommended).
 
-### 🕵️‍♂️ "Black Box" Monitoring (Full Transparency)
-- **Wake Tracking**: New in v4.6. The script records how long the Mac stays on and how much battery is consumed during actual use.
-
-- **Sleep Delta**: Mathematical calculation of charge loss during suspension. If you read DELTA: 0%, the system was perfectly efficient.
-
-- **Driver Freeze**: Logitech drivers or security software (Malwarebytes) are "frozen" (SIGSTOP) at sleep and "unfrozen" (SIGCONT) at wake, avoiding restart loops.
-
-## 🚀 Installation
-
-**Requirements**: Make sure you have sleepwatcher installed:
+Install dependency:
 
 ```bash
 brew install sleepwatcher
 ```
 
-**Clone & Install**:
+## Install
 
 ```bash
 git clone https://github.com/dedandy/macos-sleep-manager.git
@@ -35,54 +30,129 @@ chmod +x install.sh
 ./install.sh
 ```
 
-**Activation**:
+After install:
 
 ```bash
 source ~/.zshrc
 ```
 
-## 🛠 Available Commands
+## Quick Start
 
-### sleeplog
-The main dashboard. Shows the latest Sleep/Wake cycles, indicating:
-- Battery at close/open
-- Awake time
-- Battery used
-- Sleep Delta
+- View recent events:
+  ```bash
+  sleeplog
+  ```
+- Show stats:
+  ```bash
+  sleeplog stats
+  sleeplog stats today
+  ```
+- Edit configuration interactively:
+  ```bash
+  sleepconf
+  ```
 
-### sleeplog stats
-Generates an efficiency report that sums total usage time and average consumption, helping you understand if battery drops are due to active use or standby issues.
+## Configuration
 
-### sleepconf
-Opens the interactive editor to manage:
-- **Whitelist**: Apps that should never be closed (e.g., Messaging)
-- **Heavy Apps**: Apps that are killed at sleep and reopened only if the charger is connected
-- **CPU Threshold**: Sensitivity for automatic termination of runaway processes
-
-## 🔐 Security and Permissions
-
-For proper functionality, macOS requires sleepwatcher to have elevated permissions:
-
-1. Go to **System Settings > Privacy & Security > Full Disk Access**
-2. Make sure sleepwatcher is enabled
-
-If logs don't update, the installer automatically performs digital signing, but you can force it with:
+The active configuration is written to:
 
 ```bash
-sudo codesign --force --deep --sign - $(which sleepwatcher)
+~/.sleepmanager.conf
 ```
 
-## 🗑 Uninstallation
+Key options include:
 
-To restore your Mac to original factory settings (restoring system timers and standard network functions):
+- `ENABLE_NOTIFICATIONS=true|false`
+- `SAFE_QUIT_MODE=true|false`
+- `CPU_THRESHOLD=1.0`
+- `WHITELIST="App A|App B"`
+- `HEAVY_APPS="App A|App B"`
+- `RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal"`
+- `RESTORE_TERMINAL_MAX=6`
+
+## Restore Apps (Wake + Login)
+
+The restore workflow runs on wake and at login via a LaunchAgent. It reopens selected apps and restores Terminal working directories when no Terminal window is open.
+
+Manual run:
+
+```bash
+~/.sleepmanager_restore --manual
+```
+
+## SwiftBar Menu
+
+Copy the SwiftBar script into the plugin folder to enable the menu:
+
+```bash
+cp SleepManager.1m.sh ~/SwiftBar-Plugins/
+```
+
+If you prefer symlinks and SwiftBar does not detect them, use the copy command above.
+
+## Installed Files
+
+| Purpose | Path |
+| --- | --- |
+| Sleep hook | `~/.sleep` |
+| Wake hook | `~/.wakeup` |
+| Log viewer | `~/.sleeplog` |
+| Config editor | `~/.sleepmanager_editor` |
+| Auto editor helper | `~/.config_editor_auto` |
+| Restore script | `~/.sleepmanager_restore` |
+| Config file | `~/.sleepmanager.conf` |
+| History log | `~/.sleeplog_history` |
+| Battery snapshot | `~/.sleep_batt_start` |
+| Wake info | `~/.wake_batt_info` |
+| Killed apps list | `~/.sleep_killed_apps` |
+| Terminal dirs cache | `~/.sleepmanager_terminal_dirs` |
+| Login LaunchAgent | `~/Library/LaunchAgents/com.sleepmanager.restore.plist` |
+
+## Troubleshooting
+
+- Check current power settings before and after install:
+  ```bash
+  pmset -g custom
+  ```
+- Inspect logs:
+  ```bash
+  tail -n 100 ~/.sleeplog_history
+  ```
+- Verify configuration:
+  ```bash
+  ./test_config.sh
+  ```
+
+## FAQ
+
+**SwiftBar plugin does not show**
+
+- Ensure the plugin is a real file (not a symlink) inside `~/SwiftBar-Plugins`.
+- Run it manually to confirm output:
+  ```bash
+  ~/SwiftBar-Plugins/SleepManager.1m.sh
+  ```
+
+**Apps do not restore on wake/login**
+
+- Check `RESTORE_APPS` in `~/.sleepmanager.conf`.
+- Verify the LaunchAgent:
+  ```bash
+  launchctl list | grep com.sleepmanager.restore
+  ```
+
+**Logs are empty or not updating**
+
+- Confirm `sleepwatcher` has Full Disk Access.
+- Make sure hooks are installed in `~/.sleep` and `~/.wakeup`.
+
+## Uninstall
 
 ```bash
 chmod +x uninstall.sh
 ./uninstall.sh
 ```
 
-## 📄 License
+## License
 
-Distributed under the MIT License. Free to use and modify.
-
-Developed for those who demand their Mac doesn't lose even 1% charge overnight.
+MIT License.

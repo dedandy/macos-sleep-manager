@@ -8,6 +8,8 @@
 CONF_FILE="$HOME/.sleepmanager.conf"
 LOG_FILE="$HOME/.sleeplog_history"
 EDITOR_AUTO="$HOME/.config_editor_auto"
+RESTORE_SCRIPT="$HOME/.sleepmanager_restore"
+VERSION_FILE="$HOME/.sleepmanager_version"
 
 # Carica configurazione
 if [ -f "$CONF_FILE" ]; then
@@ -18,6 +20,7 @@ else
     echo "Esegui: ~/.sleepmanager_install | terminal=true"
     exit 0
 fi
+[ -f "$VERSION_FILE" ] && source "$VERSION_FILE"
 
 # --- STATO BARRA ---
 LAST_DELTA=$(grep "DELTA:" "$LOG_FILE" 2>/dev/null | tail -1 | grep -o "\-[0-9]*%" | sed 's/-//' || echo "—")
@@ -27,6 +30,10 @@ else
     echo "🔋 -$LAST_DELTA | color=blue"
 fi
 echo "---"
+if [ -n "$SM_VERSION" ]; then
+    echo "Versione: v$SM_VERSION | color=gray size=11"
+    echo "---"
+fi
 
 # --- DASHBOARD ---
 echo "📊 Ultimi Eventi | size=13 color=#00D9FF"
@@ -47,8 +54,7 @@ else
     IFS='|' read -ra APPS <<< "$WHITELIST"
     for app in "${APPS[@]}"; do
         [ -z "$app" ] && continue
-        # Comando di rimozione con escape corretto
-        REMOVE_CMD="sed -i.bak \"s/\b${app}\b//;s/||/|/g;s/^\|//;s/\|$//\" \"$CONF_FILE\" && rm -f \"${CONF_FILE}.bak\""
+        REMOVE_CMD="perl -pi -e 's/(^|\\|)\\Q${app}\\E(?=\\||\$)//g; s/^\\|//; s/\\|\\|/\\|/g; s/\\|\$//' \"$CONF_FILE\""
         echo "-- ✓ $app | shell=/bin/bash param1=-c param2='$REMOVE_CMD' terminal=false refresh=true"
     done
 fi
@@ -65,11 +71,38 @@ else
     IFS='|' read -ra APPS_H <<< "$HEAVY_APPS"
     for app in "${APPS_H[@]}"; do
         [ -z "$app" ] && continue
-        REMOVE_CMD="sed -i.bak \"s/\b${app}\b//;s/||/|/g;s/^\|//;s/\|$//\" \"$CONF_FILE\" && rm -f \"${CONF_FILE}.bak\""
+        REMOVE_CMD="perl -pi -e 's/(^|\\|)\\Q${app}\\E(?=\\||\$)//g; s/^\\|//; s/\\|\\|/\\|/g; s/\\|\$//' \"$CONF_FILE\""
         echo "-- ⚡ $app | shell=/bin/bash param1=-c param2='$REMOVE_CMD' terminal=false refresh=true"
     done
 fi
 echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS terminal=false refresh=true"
+
+echo "---"
+
+# --- RESTORE APPS ---
+echo "🔁 Restore Apps (Wake/Login) | color=#6FE0FF"
+if [ -z "$RESTORE_APPS" ]; then
+    echo "-- (vuota) | color=gray"
+else
+    IFS='|' read -ra APPS_R <<< "$RESTORE_APPS"
+    for app in "${APPS_R[@]}"; do
+        [ -z "$app" ] && continue
+        proc_name="$app"
+        if [ "$app" = "Visual Studio Code" ]; then proc_name="Code"; fi
+        if pgrep -x "$proc_name" >/dev/null 2>&1; then
+            status="🟢"
+        else
+            status="⚪️"
+        fi
+        REMOVE_CMD="perl -pi -e 's/(^|\\|)\\Q${app}\\E(?=\\||\$)//g; s/^\\|//; s/\\|\\|/\\|/g; s/\\|\$//' \"$CONF_FILE\""
+        echo "-- $status $app | shell=/bin/bash param1=-c param2='$REMOVE_CMD' terminal=false refresh=true"
+    done
+fi
+echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS terminal=false refresh=true"
+echo "-- 🔢 Max Tab Terminal: ${RESTORE_TERMINAL_MAX:-6} | color=gray"
+echo "-- Imposta 4 | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^RESTORE_TERMINAL_MAX=.*/RESTORE_TERMINAL_MAX=4/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
+echo "-- Imposta 6 | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^RESTORE_TERMINAL_MAX=.*/RESTORE_TERMINAL_MAX=6/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
+echo "-- Imposta 8 | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^RESTORE_TERMINAL_MAX=.*/RESTORE_TERMINAL_MAX=8/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
 
 echo "---"
 
@@ -106,5 +139,6 @@ echo "📜 Visualizza Log Completi | shell=open terminal=false param1=-e param2=
 
 echo "-- 📊 Statistiche Uso | shell=\"$HOME/.sleeplog\" param1=stats terminal=true refresh=false"
 # echo "-- 📊 Statistiche Uso | shell=$HOME/.sleeplog terminal=true param1=stats"
+echo "-- 🔁 Ripristina App Ora | shell=\"$RESTORE_SCRIPT\" param1=--manual terminal=true refresh=false"
 echo "-- 🔄 Reinstalla Sistema | shell=\"$HOME/.sleepmanager_install\" terminal=true refresh=false color=orange"
 echo "-- 🐛 Debug Log GUI | shell=open param1=\"$HOME/.sleepmanager_gui.log\" terminal=false color=gray"
