@@ -1,5 +1,5 @@
 #!/bin/bash
-# install.sh v4.7.2 - Auto-configuration con scrittura diretta
+# install.sh v4.7.3 - Auto-configuration con scrittura diretta
 CYAN='\033[1;36m'; BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 CONF_FILE="$HOME/.sleepmanager.conf"
 VERSION_FILE="$HOME/.sleepmanager_version"
@@ -48,7 +48,7 @@ echo -e "${BLUE}[3/4] Creazione configurazione...${NC}"
 
 # SCRITTURA DIRETTA del file config (non usa sed)
 cat > "$CONF_FILE" << EOF
-# macOS Sleep Manager v4.7.2 - Auto-Generated Config
+# macOS Sleep Manager v4.7.3 - Auto-Generated Config
 # Generato il: $(date '+%Y-%m-%d %H:%M:%S')
 
 # --- IMPOSTAZIONI GENERALI ---
