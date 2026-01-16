@@ -42,7 +42,9 @@ if pgrep -x "Terminal" >/dev/null 2>&1; then
 fi
 
 # 2. Ottimizzazione Kernel
-sudo pmset -a tcpkeepalive 0 proximitywake 0
+STANDBY_DELAY_MINUTES=${STANDBY_DELAY_MINUTES:-60}
+STANDBY_DELAY_SECONDS=$((STANDBY_DELAY_MINUTES * 60))
+sudo pmset -a tcpkeepalive 0 proximitywake 0 standby 1 standbydelayhigh "$STANDBY_DELAY_SECONDS" standbydelaylow "$STANDBY_DELAY_SECONDS"
 pkill -f "softwareupdated"
 
 # 3. Gestione Processi

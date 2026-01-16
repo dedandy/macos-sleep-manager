@@ -128,6 +128,11 @@ else
 fi
 
 echo "-- Soglia CPU: $CPU_THRESHOLD% | color=gray"
+echo "-- Standby Delay: ${STANDBY_DELAY_MINUTES:-60}m | color=gray"
+echo "-- Imposta 15m | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^STANDBY_DELAY_MINUTES=.*/STANDBY_DELAY_MINUTES=15/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
+echo "-- Imposta 30m | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^STANDBY_DELAY_MINUTES=.*/STANDBY_DELAY_MINUTES=30/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
+echo "-- Imposta 60m | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^STANDBY_DELAY_MINUTES=.*/STANDBY_DELAY_MINUTES=60/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
+echo "-- Imposta 120m | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^STANDBY_DELAY_MINUTES=.*/STANDBY_DELAY_MINUTES=120/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
 
 echo "---"
 
@@ -137,8 +142,11 @@ echo "⚙️ Configurazione Avanzata | shell=$HOME/.sleepmanager_editor terminal
 # echo "-- 📜 Apri Log Completo | shell=open param1=\"$LOG_FILE\" terminal=false"
 echo "📜 Visualizza Log Completi | shell=open terminal=false param1=-e param2=\"$LOG_FILE\""
 
-echo "-- 📊 Statistiche Uso | shell=\"$HOME/.sleeplog\" param1=stats terminal=true refresh=false"
-# echo "-- 📊 Statistiche Uso | shell=$HOME/.sleeplog terminal=true param1=stats"
+if [ -x "$HOME/.sleeplog" ]; then
+    echo "-- 📊 Statistiche Uso | shell=/bin/bash param1=-lc param2=\"\\\"$HOME/.sleeplog\\\" stats\" terminal=true refresh=false"
+else
+    echo "-- 📊 Statistiche Uso (manca ~/.sleeplog) | color=orange"
+fi
 echo "-- 🔁 Ripristina App Ora | shell=\"$RESTORE_SCRIPT\" param1=--manual terminal=true refresh=false"
 echo "-- 🔄 Reinstalla Sistema | shell=\"$HOME/.sleepmanager_install\" terminal=true refresh=false color=orange"
 echo "-- 🐛 Debug Log GUI | shell=open param1=\"$HOME/.sleepmanager_gui.log\" terminal=false color=gray"

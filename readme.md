@@ -47,6 +47,15 @@ source ~/.zshrc
   sleeplog stats
   sleeplog stats today
   ```
+- Advanced filters:
+  ```bash
+  sleeplog last
+  sleeplog yesterday
+  sleeplog week
+  sleeplog battery today
+  sleeplog apps week
+  sleeplog kills week
+  ```
 - Edit configuration interactively:
   ```bash
   sleepconf
@@ -65,6 +74,7 @@ Key options include:
 - `ENABLE_NOTIFICATIONS=true|false`
 - `SAFE_QUIT_MODE=true|false`
 - `CPU_THRESHOLD=1.0`
+- `STANDBY_DELAY_MINUTES=60`
 - `WHITELIST="App A|App B"`
 - `HEAVY_APPS="App A|App B"`
 - `RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal"`
@@ -73,6 +83,8 @@ Key options include:
 ## Restore Apps (Wake + Login)
 
 The restore workflow runs on wake and at login via a LaunchAgent. It reopens selected apps and restores Terminal working directories when no Terminal window is open.
+
+You can tune standby delay to improve short wakeups (example: 15, 30, 60, 120 minutes).
 
 Manual run:
 

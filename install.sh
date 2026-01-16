@@ -56,6 +56,9 @@ ENABLE_NOTIFICATIONS=true
 SAFE_QUIT_MODE=true
 CPU_THRESHOLD=1.0
 
+# Ritardo Deep Sleep (minuti)
+STANDBY_DELAY_MINUTES=60
+
 # --- LISTE APPLICAZIONI ---
 # Whitelist: App protette dalla chiusura automatica
 WHITELIST="$WHITELIST_STR"
