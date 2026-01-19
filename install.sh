@@ -59,6 +59,9 @@ CPU_THRESHOLD=1.0
 # Ritardo Deep Sleep (minuti)
 STANDBY_DELAY_MINUTES=60
 
+# Dark wake controls (true/false)
+DISABLE_DARKWAKE_FEATURES=true
+
 # --- LISTE APPLICAZIONI ---
 # Whitelist: App protette dalla chiusura automatica
 WHITELIST="$WHITELIST_STR"
@@ -71,6 +74,9 @@ RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuar
 
 # Restore Terminal: massimo numero di tab da ripristinare
 RESTORE_TERMINAL_MAX=6
+
+# Diagnostic logging for sleep/wake (true/false)
+LOG_ASSERTIONS=true
 EOF
 
 # Verifica che il file sia stato scritto correttamente

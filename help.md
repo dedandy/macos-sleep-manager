@@ -31,10 +31,12 @@ ENABLE_NOTIFICATIONS=true
 SAFE_QUIT_MODE=true
 CPU_THRESHOLD=1.0
 STANDBY_DELAY_MINUTES=60
+DISABLE_DARKWAKE_FEATURES=true
 WHITELIST="App A|App B"
 HEAVY_APPS="App A|App B"
 RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal"
 RESTORE_TERMINAL_MAX=6
+LOG_ASSERTIONS=true
 ```
 
 Dettagli:
@@ -43,10 +45,12 @@ Dettagli:
 - `SAFE_QUIT_MODE`: chiusura controllata vs forzata dei processi.
 - `CPU_THRESHOLD`: soglia CPU (percento) oltre la quale un processo puo' essere chiuso allo sleep.
 - `STANDBY_DELAY_MINUTES`: minuti di standby prima dell'hibernation profonda.
+- `DISABLE_DARKWAKE_FEATURES`: disabilita powernap/womp/ttyskeepawake/sleepservices durante lo sleep.
 - `WHITELIST`: app sempre protette dalla chiusura.
 - `HEAVY_APPS`: app chiuse allo sleep e riaperte al wake solo se su alimentazione.
 - `RESTORE_APPS`: app riaperte al wake e al login se non sono gia' in esecuzione.
 - `RESTORE_TERMINAL_MAX`: numero massimo di tab ripristinate nel Terminale.
+- `LOG_ASSERTIONS`: aggiunge snapshot e top assertions ai log.
 
 ## Restore Apps (Wake/Login)
 

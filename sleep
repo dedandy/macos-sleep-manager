@@ -5,6 +5,8 @@ VERSION_FILE="$HOME/.sleepmanager_version"
 LOG_FILE="$HOME/.sleeplog_history"
 WAKE_INFO_FILE="$HOME/.wake_batt_info"
 TERMINAL_DIRS_FILE="$HOME/.sleepmanager_terminal_dirs"
+PMSET_SNAPSHOT_FILE="$HOME/.sleepmanager_pmset_snapshot"
+DIAG_LOG_FILE="$HOME/.sleepmanager_diagnose"
 [ -f "$CONF_FILE" ] && source "$CONF_FILE"
 [ -f "$VERSION_FILE" ] && source "$VERSION_FILE"
 
@@ -43,8 +45,30 @@ fi
 
 # 2. Ottimizzazione Kernel
 STANDBY_DELAY_MINUTES=${STANDBY_DELAY_MINUTES:-60}
+DISABLE_DARKWAKE_FEATURES=${DISABLE_DARKWAKE_FEATURES:-true}
+LOG_ASSERTIONS=${LOG_ASSERTIONS:-true}
 STANDBY_DELAY_SECONDS=$((STANDBY_DELAY_MINUTES * 60))
 sudo pmset -a tcpkeepalive 0 proximitywake 0 standby 1 standbydelayhigh "$STANDBY_DELAY_SECONDS" standbydelaylow "$STANDBY_DELAY_SECONDS"
+
+# Snapshot and disable dark-wake related settings
+pmset -g custom > "$PMSET_SNAPSHOT_FILE" 2>/dev/null
+if [ "$DISABLE_DARKWAKE_FEATURES" = "true" ]; then
+    sudo pmset -a powernap 0 womp 0 ttyskeepawake 0 sleepservices 0
+fi
+
+# Diagnostic snapshot for post-mortem
+if [ "$LOG_ASSERTIONS" = "true" ]; then
+    {
+        echo "==== DIAG_SLEEP $(date '+%Y-%m-%d %H:%M:%S') ===="
+        pmset -g assertions
+        pmset -g log | tail -n 80
+        echo "==== DIAG_END ===="
+    } >> "$DIAG_LOG_FILE" 2>/dev/null
+
+    pmset -g assertions | awk '/named:/{print}' | head -n 5 | while read -r line; do
+        echo "  [ASSERTION] $line" >> "$LOG_FILE"
+    done
+fi
 pkill -f "softwareupdated"
 
 # 3. Gestione Processi

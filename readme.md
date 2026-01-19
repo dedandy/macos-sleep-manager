@@ -75,16 +75,20 @@ Key options include:
 - `SAFE_QUIT_MODE=true|false`
 - `CPU_THRESHOLD=1.0`
 - `STANDBY_DELAY_MINUTES=60`
+- `DISABLE_DARKWAKE_FEATURES=true`
 - `WHITELIST="App A|App B"`
 - `HEAVY_APPS="App A|App B"`
 - `RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal"`
 - `RESTORE_TERMINAL_MAX=6`
+- `LOG_ASSERTIONS=true`
 
 ## Restore Apps (Wake + Login)
 
 The restore workflow runs on wake and at login via a LaunchAgent. It reopens selected apps and restores Terminal working directories when no Terminal window is open.
 
 You can tune standby delay to improve short wakeups (example: 15, 30, 60, 120 minutes).
+
+To reduce standby drain, you can disable dark-wake features during sleep (powernap, womp, ttyskeepawake, sleepservices).
 
 Manual run:
 

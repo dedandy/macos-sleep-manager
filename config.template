@@ -25,6 +25,10 @@ CPU_THRESHOLD=1.0
 # Esempi: 15, 30, 60, 120
 STANDBY_DELAY_MINUTES=60
 
+# Dark wake controls (true/false)
+# Disabilita powernap/womp/ttyskeepawake/sleepservices durante sleep
+DISABLE_DARKWAKE_FEATURES=true
+
 # --- APPLICAZIONI ---
 
 # Whitelist: App che non devono MAI essere chiuse (separate da |)
@@ -44,3 +48,6 @@ RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuar
 
 # Numero massimo di tab Terminal da ripristinare
 RESTORE_TERMINAL_MAX=6
+
+# Diagnostic logging for sleep/wake (true/false)
+LOG_ASSERTIONS=true

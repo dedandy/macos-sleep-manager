@@ -6,12 +6,33 @@ LOG_FILE="$HOME/.sleeplog_history"
 BATT_START_FILE="$HOME/.sleep_batt_start"
 WAKE_INFO_FILE="$HOME/.wake_batt_info"
 RESTORE_SCRIPT="$HOME/.sleepmanager_restore"
+PMSET_SNAPSHOT_FILE="$HOME/.sleepmanager_pmset_snapshot"
+DIAG_LOG_FILE="$HOME/.sleepmanager_diagnose"
 
 [ -f "$CONF_FILE" ] && source "$CONF_FILE"
 [ -f "$VERSION_FILE" ] && source "$VERSION_FILE"
+DISABLE_DARKWAKE_FEATURES=${DISABLE_DARKWAKE_FEATURES:-true}
+LOG_ASSERTIONS=${LOG_ASSERTIONS:-true}
 
 # Riattiva rete e scongela processi
 sudo pmset -a tcpkeepalive 1 proximitywake 1
+
+# Restore power settings if snapshot exists
+if [ -f "$PMSET_SNAPSHOT_FILE" ]; then
+    get_pmset_val() {
+        awk -v key="$1" '$1==key {print $2; exit}' "$PMSET_SNAPSHOT_FILE"
+    }
+    POWERNAP_VAL=$(get_pmset_val powernap)
+    WOMP_VAL=$(get_pmset_val womp)
+    TTYSKEEP_VAL=$(get_pmset_val ttyskeepawake)
+    SLEEPSERVICES_VAL=$(get_pmset_val SleepServices)
+    if [ "$DISABLE_DARKWAKE_FEATURES" = "true" ]; then
+        [ -n "$POWERNAP_VAL" ] && sudo pmset -a powernap "$POWERNAP_VAL"
+        [ -n "$WOMP_VAL" ] && sudo pmset -a womp "$WOMP_VAL"
+        [ -n "$TTYSKEEP_VAL" ] && sudo pmset -a ttyskeepawake "$TTYSKEEP_VAL"
+        [ -n "$SLEEPSERVICES_VAL" ] && sudo pmset -a sleepservices "$SLEEPSERVICES_VAL"
+    fi
+fi
 pkill -CONT -f "RTProtectionDaemon|Malwarebytes|virus|security|Logi"
 
 # Registra dati per il prossimo log di uso attivo
@@ -25,6 +46,20 @@ DELTA=$(( ${BATT_START%\%} - ${BATT_END%\%} ))
 
 echo "==== SESSION_START $(date '+%Y-%m-%d %H:%M:%S') ====" >> "$LOG_FILE"
 echo "ACTION: WAKE | BATT: $BATT_END | DELTA: -$DELTA% (SLEEP LOSS)" >> "$LOG_FILE"
+
+# Diagnostic snapshot after wake
+if [ "$LOG_ASSERTIONS" = "true" ]; then
+    {
+        echo "==== DIAG_WAKE $(date '+%Y-%m-%d %H:%M:%S') ===="
+        pmset -g assertions
+        pmset -g log | tail -n 80
+        echo "==== DIAG_END ===="
+    } >> "$DIAG_LOG_FILE" 2>/dev/null
+
+    pmset -g assertions | awk '/named:/{print}' | head -n 5 | while read -r line; do
+        echo "  [ASSERTION] $line" >> "$LOG_FILE"
+    done
+fi
 
 # Ripristino Heavy Apps
 APPS_KILLED="$HOME/.sleep_killed_apps"
