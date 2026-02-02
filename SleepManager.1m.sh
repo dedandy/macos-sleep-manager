@@ -1,6 +1,6 @@
 #!/bin/bash
 # <bitbar.title>macOS Sleep Manager Monitor</bitbar.title>
-# <bitbar.version>v4.9.2</bitbar.version>
+# <bitbar.version>v4.9.4</bitbar.version>
 # <swiftbar.hideAbout>true</swiftbar.hideAbout>
 # <swiftbar.hideRunInTerminal>true</swiftbar.hideRunInTerminal>
 # <swiftbar.hideSwiftBar>true</swiftbar.hideSwiftBar>
@@ -127,12 +127,51 @@ else
     echo "-- ❌ Chiusura Forzata | shell=/bin/bash param1=-c param2='$CMD_SAFE' terminal=false refresh=true"
 fi
 
+if [ "$TOGGLE_BLUETOOTH_ON_SLEEP" = "true" ]; then
+    CMD_BT="sed -i.bak 's/^TOGGLE_BLUETOOTH_ON_SLEEP=true/TOGGLE_BLUETOOTH_ON_SLEEP=false/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'"
+    echo "-- ✅ Bluetooth OFF on Sleep | shell=/bin/bash param1=-c param2='$CMD_BT' terminal=false refresh=true"
+else
+    CMD_BT="sed -i.bak 's/^TOGGLE_BLUETOOTH_ON_SLEEP=false/TOGGLE_BLUETOOTH_ON_SLEEP=true/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'"
+    echo "-- ❌ Bluetooth OFF on Sleep | shell=/bin/bash param1=-c param2='$CMD_BT' terminal=false refresh=true"
+fi
+
+if [ "$AGGRESSIVE_POWER_PROFILE" = "true" ]; then
+    CMD_PWR="sed -i.bak 's/^AGGRESSIVE_POWER_PROFILE=true/AGGRESSIVE_POWER_PROFILE=false/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'"
+    echo "-- ✅ Aggressive Power Profile | shell=/bin/bash param1=-c param2='$CMD_PWR' terminal=false refresh=true"
+else
+    CMD_PWR="sed -i.bak 's/^AGGRESSIVE_POWER_PROFILE=false/AGGRESSIVE_POWER_PROFILE=true/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'"
+    echo "-- ❌ Aggressive Power Profile | shell=/bin/bash param1=-c param2='$CMD_PWR' terminal=false refresh=true"
+fi
+
+if [ "$SHOW_STANDBY_ALERT" = "true" ]; then
+    CMD_ALERT="sed -i.bak 's/^SHOW_STANDBY_ALERT=true/SHOW_STANDBY_ALERT=false/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'"
+    echo "-- ✅ Standby Alert | shell=/bin/bash param1=-c param2='$CMD_ALERT' terminal=false refresh=true"
+else
+    CMD_ALERT="sed -i.bak 's/^SHOW_STANDBY_ALERT=false/SHOW_STANDBY_ALERT=true/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'"
+    echo "-- ❌ Standby Alert | shell=/bin/bash param1=-c param2='$CMD_ALERT' terminal=false refresh=true"
+fi
+
 echo "-- Soglia CPU: $CPU_THRESHOLD% | color=gray"
 echo "-- Standby Delay: ${STANDBY_DELAY_MINUTES:-60}m | color=gray"
 echo "-- Imposta 15m | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^STANDBY_DELAY_MINUTES=.*/STANDBY_DELAY_MINUTES=15/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
 echo "-- Imposta 30m | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^STANDBY_DELAY_MINUTES=.*/STANDBY_DELAY_MINUTES=30/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
 echo "-- Imposta 60m | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^STANDBY_DELAY_MINUTES=.*/STANDBY_DELAY_MINUTES=60/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
 echo "-- Imposta 120m | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^STANDBY_DELAY_MINUTES=.*/STANDBY_DELAY_MINUTES=120/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
+echo "---"
+
+# --- FORCE SLEEP KILL ---
+echo "🚫 Force Kill Apps | color=#FF3B30"
+if [ -z "$FORCE_SLEEP_KILL_APPS" ]; then
+    echo "-- (vuota) | color=gray"
+else
+    IFS='|' read -ra APPS_F <<< "$FORCE_SLEEP_KILL_APPS"
+    for app in "${APPS_F[@]}"; do
+        [ -z "$app" ] && continue
+        REMOVE_CMD="perl -pi -e 's/(^|\\|)\\Q${app}\\E(?=\\||\$)//g; s/^\\|//; s/\\|\\|/\\|/g; s/\\|\$//' \"$CONF_FILE\""
+        echo "-- 🧨 $app | shell=/bin/bash param1=-c param2='$REMOVE_CMD' terminal=false refresh=true"
+    done
+fi
+echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=FORCE_SLEEP_KILL_APPS terminal=false refresh=true"
 
 echo "---"
 

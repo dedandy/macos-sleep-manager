@@ -76,11 +76,15 @@ Key options include:
 - `CPU_THRESHOLD=1.0`
 - `STANDBY_DELAY_MINUTES=60`
 - `DISABLE_DARKWAKE_FEATURES=true`
+- `FORCE_SLEEP_KILL_APPS="WhatsApp|Google Chrome"`
 - `WHITELIST="App A|App B"`
 - `HEAVY_APPS="App A|App B"`
 - `RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal"`
 - `RESTORE_TERMINAL_MAX=6`
 - `LOG_ASSERTIONS=true`
+- `TOGGLE_BLUETOOTH_ON_SLEEP=false`
+- `AGGRESSIVE_POWER_PROFILE=false`
+- `SHOW_STANDBY_ALERT=true`
 
 ## Restore Apps (Wake + Login)
 
@@ -89,6 +93,10 @@ The restore workflow runs on wake and at login via a LaunchAgent. It reopens sel
 You can tune standby delay to improve short wakeups (example: 15, 30, 60, 120 minutes).
 
 To reduce standby drain, you can disable dark-wake features during sleep (powernap, womp, ttyskeepawake, sleepservices).
+You can also force-kill specific apps that keep assertions (example: WhatsApp, Chrome).
+`sleeplog` shows a warning banner when blocking assertions are detected from diagnostics.
+You can enable a more aggressive power profile (disksleep + autopoweroff) and toggle Bluetooth off during sleep.
+An optional standby alert reminds you to disconnect power and USB hubs for best sleep.
 
 Manual run:
 

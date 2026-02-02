@@ -1,5 +1,5 @@
 #!/bin/bash
-# install.sh v4.9.2 - Auto-configuration con scrittura diretta
+# install.sh v4.9.4 - Auto-configuration con scrittura diretta
 CYAN='\033[1;36m'; BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 CONF_FILE="$HOME/.sleepmanager.conf"
 VERSION_FILE="$HOME/.sleepmanager_version"
@@ -48,7 +48,7 @@ echo -e "${BLUE}[3/4] Creazione configurazione...${NC}"
 
 # SCRITTURA DIRETTA del file config (non usa sed)
 cat > "$CONF_FILE" << EOF
-# macOS Sleep Manager v4.9.2 - Auto-Generated Config
+# macOS Sleep Manager v4.9.4 - Auto-Generated Config
 # Generato il: $(date '+%Y-%m-%d %H:%M:%S')
 
 # --- IMPOSTAZIONI GENERALI ---
@@ -61,6 +61,9 @@ STANDBY_DELAY_MINUTES=60
 
 # Dark wake controls (true/false)
 DISABLE_DARKWAKE_FEATURES=true
+
+# Force-kill apps on sleep to prevent dark wake
+FORCE_SLEEP_KILL_APPS="WhatsApp|Google Chrome"
 
 # --- LISTE APPLICAZIONI ---
 # Whitelist: App protette dalla chiusura automatica
@@ -77,6 +80,15 @@ RESTORE_TERMINAL_MAX=6
 
 # Diagnostic logging for sleep/wake (true/false)
 LOG_ASSERTIONS=true
+
+# Bluetooth toggle on sleep/wake (true/false)
+TOGGLE_BLUETOOTH_ON_SLEEP=false
+
+# Aggressive power profile (true/false)
+AGGRESSIVE_POWER_PROFILE=false
+
+# Show alert on sleep (true/false)
+SHOW_STANDBY_ALERT=true
 EOF
 
 # Verifica che il file sia stato scritto correttamente

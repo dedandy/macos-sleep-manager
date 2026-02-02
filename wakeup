@@ -13,6 +13,8 @@ DIAG_LOG_FILE="$HOME/.sleepmanager_diagnose"
 [ -f "$VERSION_FILE" ] && source "$VERSION_FILE"
 DISABLE_DARKWAKE_FEATURES=${DISABLE_DARKWAKE_FEATURES:-true}
 LOG_ASSERTIONS=${LOG_ASSERTIONS:-true}
+TOGGLE_BLUETOOTH_ON_SLEEP=${TOGGLE_BLUETOOTH_ON_SLEEP:-false}
+AGGRESSIVE_POWER_PROFILE=${AGGRESSIVE_POWER_PROFILE:-false}
 
 # Riattiva rete e scongela processi
 sudo pmset -a tcpkeepalive 1 proximitywake 1
@@ -26,11 +28,19 @@ if [ -f "$PMSET_SNAPSHOT_FILE" ]; then
     WOMP_VAL=$(get_pmset_val womp)
     TTYSKEEP_VAL=$(get_pmset_val ttyskeepawake)
     SLEEPSERVICES_VAL=$(get_pmset_val SleepServices)
+    MAGICWAKE_VAL=$(get_pmset_val magicwake)
+    DISKSLEEP_VAL=$(get_pmset_val disksleep)
+    AUTOPOWEROFF_VAL=$(get_pmset_val autopoweroff)
     if [ "$DISABLE_DARKWAKE_FEATURES" = "true" ]; then
         [ -n "$POWERNAP_VAL" ] && sudo pmset -a powernap "$POWERNAP_VAL"
         [ -n "$WOMP_VAL" ] && sudo pmset -a womp "$WOMP_VAL"
         [ -n "$TTYSKEEP_VAL" ] && sudo pmset -a ttyskeepawake "$TTYSKEEP_VAL"
         [ -n "$SLEEPSERVICES_VAL" ] && sudo pmset -a sleepservices "$SLEEPSERVICES_VAL"
+        [ -n "$MAGICWAKE_VAL" ] && sudo pmset -a magicwake "$MAGICWAKE_VAL"
+    fi
+    if [ "$AGGRESSIVE_POWER_PROFILE" = "true" ]; then
+        [ -n "$DISKSLEEP_VAL" ] && sudo pmset -a disksleep "$DISKSLEEP_VAL"
+        [ -n "$AUTOPOWEROFF_VAL" ] && sudo pmset -a autopoweroff "$AUTOPOWEROFF_VAL"
     fi
 fi
 pkill -CONT -f "RTProtectionDaemon|Malwarebytes|virus|security|Logi"
@@ -59,6 +69,12 @@ if [ "$LOG_ASSERTIONS" = "true" ]; then
     pmset -g assertions | awk '/named:/{print}' | head -n 5 | while read -r line; do
         echo "  [ASSERTION] $line" >> "$LOG_FILE"
     done
+fi
+
+if [ "$TOGGLE_BLUETOOTH_ON_SLEEP" = "true" ]; then
+    if command -v blueutil >/dev/null 2>&1; then
+        blueutil -p 1
+    fi
 fi
 
 # Ripristino Heavy Apps

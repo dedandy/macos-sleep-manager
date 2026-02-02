@@ -47,13 +47,33 @@ fi
 STANDBY_DELAY_MINUTES=${STANDBY_DELAY_MINUTES:-60}
 DISABLE_DARKWAKE_FEATURES=${DISABLE_DARKWAKE_FEATURES:-true}
 LOG_ASSERTIONS=${LOG_ASSERTIONS:-true}
+FORCE_SLEEP_KILL_APPS=${FORCE_SLEEP_KILL_APPS:-""}
+TOGGLE_BLUETOOTH_ON_SLEEP=${TOGGLE_BLUETOOTH_ON_SLEEP:-false}
+AGGRESSIVE_POWER_PROFILE=${AGGRESSIVE_POWER_PROFILE:-false}
+SHOW_STANDBY_ALERT=${SHOW_STANDBY_ALERT:-true}
 STANDBY_DELAY_SECONDS=$((STANDBY_DELAY_MINUTES * 60))
 sudo pmset -a tcpkeepalive 0 proximitywake 0 standby 1 standbydelayhigh "$STANDBY_DELAY_SECONDS" standbydelaylow "$STANDBY_DELAY_SECONDS"
 
 # Snapshot and disable dark-wake related settings
 pmset -g custom > "$PMSET_SNAPSHOT_FILE" 2>/dev/null
 if [ "$DISABLE_DARKWAKE_FEATURES" = "true" ]; then
-    sudo pmset -a powernap 0 womp 0 ttyskeepawake 0 sleepservices 0
+    sudo pmset -a powernap 0 womp 0 ttyskeepawake 0 sleepservices 0 magicwake 0
+fi
+
+if [ "$AGGRESSIVE_POWER_PROFILE" = "true" ]; then
+    sudo pmset -a disksleep 1 autopoweroff 1
+fi
+
+if [ "$TOGGLE_BLUETOOTH_ON_SLEEP" = "true" ]; then
+    if command -v blueutil >/dev/null 2>&1; then
+        blueutil -p 0
+    fi
+fi
+
+if [ "$SHOW_STANDBY_ALERT" = "true" ]; then
+    if command -v osascript >/dev/null 2>&1; then
+        osascript -e 'display notification "Per uno standby efficace: stacca alimentazione, hub USB/dischi e periferiche." with title "macOS Sleep Manager"'
+    fi
 fi
 
 # Diagnostic snapshot for post-mortem
@@ -72,6 +92,15 @@ fi
 pkill -f "softwareupdated"
 
 # 3. Gestione Processi
+if [ -n "$FORCE_SLEEP_KILL_APPS" ]; then
+    IFS='|' read -ra FORCE_APPS <<< "$FORCE_SLEEP_KILL_APPS"
+    for app in "${FORCE_APPS[@]}"; do
+        [ -z "$app" ] && continue
+        pkill -9 -f "$app"
+        echo "  [KILL] $app (forced)" >> "$LOG_FILE"
+    done
+fi
+
 ps -u "$USER" -o %cpu,comm | sed '1d' | while read -r cpu comm; do
     app_name=$(basename -- "$comm")
     if echo "$app_name" | grep -qE "Finder|WindowServer|ControlCenter|Dock|WallpaperAgent|$WHITELIST"; then continue; fi

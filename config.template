@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# macOS Sleep Manager v4.9.2 - File di Configurazione
+# macOS Sleep Manager v4.9.4 - File di Configurazione
 # Posizione: ~/.sleepmanager.conf
 # -----------------------------------------------------------------------------
 
@@ -29,6 +29,9 @@ STANDBY_DELAY_MINUTES=60
 # Disabilita powernap/womp/ttyskeepawake/sleepservices durante sleep
 DISABLE_DARKWAKE_FEATURES=true
 
+# Force-kill apps on sleep to prevent dark wake (separate by |)
+FORCE_SLEEP_KILL_APPS="WhatsApp|Google Chrome"
+
 # --- APPLICAZIONI ---
 
 # Whitelist: App che non devono MAI essere chiuse (separate da |)
@@ -51,3 +54,14 @@ RESTORE_TERMINAL_MAX=6
 
 # Diagnostic logging for sleep/wake (true/false)
 LOG_ASSERTIONS=true
+
+# Bluetooth toggle on sleep/wake (true/false)
+TOGGLE_BLUETOOTH_ON_SLEEP=false
+
+# Aggressive power profile (true/false)
+# Enables disksleep and autopoweroff for deeper idle
+AGGRESSIVE_POWER_PROFILE=false
+
+# Show alert on sleep (true/false)
+# Reminds to disconnect power/USB hubs for effective standby
+SHOW_STANDBY_ALERT=true

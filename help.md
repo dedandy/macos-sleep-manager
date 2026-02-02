@@ -32,11 +32,15 @@ SAFE_QUIT_MODE=true
 CPU_THRESHOLD=1.0
 STANDBY_DELAY_MINUTES=60
 DISABLE_DARKWAKE_FEATURES=true
+FORCE_SLEEP_KILL_APPS="WhatsApp|Google Chrome"
 WHITELIST="App A|App B"
 HEAVY_APPS="App A|App B"
 RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal"
 RESTORE_TERMINAL_MAX=6
 LOG_ASSERTIONS=true
+TOGGLE_BLUETOOTH_ON_SLEEP=false
+AGGRESSIVE_POWER_PROFILE=false
+SHOW_STANDBY_ALERT=true
 ```
 
 Dettagli:
@@ -46,11 +50,15 @@ Dettagli:
 - `CPU_THRESHOLD`: soglia CPU (percento) oltre la quale un processo puo' essere chiuso allo sleep.
 - `STANDBY_DELAY_MINUTES`: minuti di standby prima dell'hibernation profonda.
 - `DISABLE_DARKWAKE_FEATURES`: disabilita powernap/womp/ttyskeepawake/sleepservices durante lo sleep.
+- `FORCE_SLEEP_KILL_APPS`: lista di app da chiudere forzatamente allo sleep per evitare dark wake.
 - `WHITELIST`: app sempre protette dalla chiusura.
 - `HEAVY_APPS`: app chiuse allo sleep e riaperte al wake solo se su alimentazione.
 - `RESTORE_APPS`: app riaperte al wake e al login se non sono gia' in esecuzione.
 - `RESTORE_TERMINAL_MAX`: numero massimo di tab ripristinate nel Terminale.
 - `LOG_ASSERTIONS`: aggiunge snapshot e top assertions ai log.
+- `TOGGLE_BLUETOOTH_ON_SLEEP`: spegne il Bluetooth allo sleep e lo riattiva al wake (richiede blueutil).
+- `AGGRESSIVE_POWER_PROFILE`: abilita disksleep e autopoweroff per uno sleep più profondo.
+- `SHOW_STANDBY_ALERT`: mostra una notifica prima dello sleep con promemoria su alimentazione/USB.
 
 ## Restore Apps (Wake/Login)
 
@@ -142,6 +150,8 @@ ACTION: WAKE | BATT: 72% | DELTA: -0% (SLEEP LOSS)
 - `AWAKE`: minuti di uso attivo tra wake e sleep.
 - `USED`: batteria consumata durante uso attivo.
 - `DELTA`: perdita reale in standby.
+
+Nelle viste `sleeplog` default e `stats`, se presenti assertions bloccanti, appare un banner di warning.
 
 ## Legenda Colori (SwiftBar)
 
