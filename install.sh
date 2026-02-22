@@ -46,57 +46,81 @@ HEAVY_STR=$(IFS="|"; echo "${HEAVY_APPS_LIST[*]}")
 
 echo -e "${BLUE}[3/4] Creazione configurazione...${NC}"
 
+# Se esiste già una configurazione, preserva i valori utente durante l'upgrade
+if [ -f "$CONF_FILE" ]; then
+    CONF_BACKUP="${CONF_FILE}.backup-$(date '+%Y%m%d-%H%M%S')"
+    cp "$CONF_FILE" "$CONF_BACKUP"
+    echo -e "${CYAN}📦 Backup config: $CONF_BACKUP${NC}"
+    source "$CONF_FILE"
+fi
+
+# Merge: mantiene la config esistente, usa default solo per chiavi nuove/mancanti
+ENABLE_NOTIFICATIONS_VAL="${ENABLE_NOTIFICATIONS:-true}"
+SAFE_QUIT_MODE_VAL="${SAFE_QUIT_MODE:-true}"
+CPU_THRESHOLD_VAL="${CPU_THRESHOLD:-1.0}"
+STANDBY_DELAY_MINUTES_VAL="${STANDBY_DELAY_MINUTES:-60}"
+DISABLE_DARKWAKE_FEATURES_VAL="${DISABLE_DARKWAKE_FEATURES:-true}"
+FORCE_SLEEP_KILL_APPS_VAL="${FORCE_SLEEP_KILL_APPS:-WhatsApp|Google Chrome}"
+WHITELIST_VAL="${WHITELIST-$WHITELIST_STR}"
+HEAVY_APPS_VAL="${HEAVY_APPS-$HEAVY_STR}"
+RESTORE_APPS_VAL="${RESTORE_APPS:-Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal}"
+RESTORE_TERMINAL_MAX_VAL="${RESTORE_TERMINAL_MAX:-6}"
+LOG_ASSERTIONS_VAL="${LOG_ASSERTIONS:-true}"
+TOGGLE_BLUETOOTH_ON_SLEEP_VAL="${TOGGLE_BLUETOOTH_ON_SLEEP:-false}"
+AGGRESSIVE_POWER_PROFILE_VAL="${AGGRESSIVE_POWER_PROFILE:-false}"
+SHOW_STANDBY_ALERT_VAL="${SHOW_STANDBY_ALERT:-true}"
+
 # SCRITTURA DIRETTA del file config (non usa sed)
 cat > "$CONF_FILE" << EOF
 # macOS Sleep Manager v4.9.6 - Auto-Generated Config
 # Generato il: $(date '+%Y-%m-%d %H:%M:%S')
 
 # --- IMPOSTAZIONI GENERALI ---
-ENABLE_NOTIFICATIONS=true
-SAFE_QUIT_MODE=true
-CPU_THRESHOLD=1.0
+ENABLE_NOTIFICATIONS=$ENABLE_NOTIFICATIONS_VAL
+SAFE_QUIT_MODE=$SAFE_QUIT_MODE_VAL
+CPU_THRESHOLD=$CPU_THRESHOLD_VAL
 
 # Ritardo Deep Sleep (minuti)
-STANDBY_DELAY_MINUTES=60
+STANDBY_DELAY_MINUTES=$STANDBY_DELAY_MINUTES_VAL
 
 # Dark wake controls (true/false)
-DISABLE_DARKWAKE_FEATURES=true
+DISABLE_DARKWAKE_FEATURES=$DISABLE_DARKWAKE_FEATURES_VAL
 
 # Force-kill apps on sleep to prevent dark wake
-FORCE_SLEEP_KILL_APPS="WhatsApp|Google Chrome"
+FORCE_SLEEP_KILL_APPS="$FORCE_SLEEP_KILL_APPS_VAL"
 
 # --- LISTE APPLICAZIONI ---
 # Whitelist: App protette dalla chiusura automatica
-WHITELIST="$WHITELIST_STR"
+WHITELIST="$WHITELIST_VAL"
 
 # Heavy Apps: Chiuse allo sleep, riaperte solo se c'è corrente
-HEAVY_APPS="$HEAVY_STR"
+HEAVY_APPS="$HEAVY_APPS_VAL"
 
 # Restore Apps: Riaperte al wake/login se non sono in esecuzione
-RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal"
+RESTORE_APPS="$RESTORE_APPS_VAL"
 
 # Restore Terminal: massimo numero di tab da ripristinare
-RESTORE_TERMINAL_MAX=6
+RESTORE_TERMINAL_MAX=$RESTORE_TERMINAL_MAX_VAL
 
 # Diagnostic logging for sleep/wake (true/false)
-LOG_ASSERTIONS=true
+LOG_ASSERTIONS=$LOG_ASSERTIONS_VAL
 
 # Bluetooth toggle on sleep/wake (true/false)
-TOGGLE_BLUETOOTH_ON_SLEEP=false
+TOGGLE_BLUETOOTH_ON_SLEEP=$TOGGLE_BLUETOOTH_ON_SLEEP_VAL
 
 # Aggressive power profile (true/false)
-AGGRESSIVE_POWER_PROFILE=false
+AGGRESSIVE_POWER_PROFILE=$AGGRESSIVE_POWER_PROFILE_VAL
 
 # Show alert on sleep (true/false)
-SHOW_STANDBY_ALERT=true
+SHOW_STANDBY_ALERT=$SHOW_STANDBY_ALERT_VAL
 EOF
 
 # Verifica che il file sia stato scritto correttamente
 if [ -f "$CONF_FILE" ] && [ -s "$CONF_FILE" ]; then
     echo -e "${GREEN}✓ Configurazione creata: $CONF_FILE${NC}"
     echo -e "${CYAN}📋 Contenuto:${NC}"
-    echo -e "${YELLOW}WHITELIST:${NC} $WHITELIST_STR"
-    echo -e "${YELLOW}HEAVY_APPS:${NC} $HEAVY_STR"
+    echo -e "${YELLOW}WHITELIST:${NC} $WHITELIST_VAL"
+    echo -e "${YELLOW}HEAVY_APPS:${NC} $HEAVY_APPS_VAL"
 else
     echo -e "${RED}✗ Errore nella creazione del config!${NC}"
     exit 1

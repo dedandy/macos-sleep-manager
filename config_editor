@@ -14,7 +14,16 @@ load_conf() {
 
 # Salva valore nel config
 save_val() { 
-    sed -i.bak "s|^$1=.*|$1=\"$2\"|" "$CONF_FILE" && rm -f "${CONF_FILE}.bak" && load_conf
+    local key="$1"
+    local value="$2"
+    local escaped="$value"
+    escaped="${escaped//\\/\\\\}"
+    escaped="${escaped//\"/\\\"}"
+    KEY="$key" VAL="$escaped" perl -i.bak -pe '
+        if (/^$ENV{KEY}=/) {
+            $_ = "$ENV{KEY}=\"$ENV{VAL}\"\n";
+        }
+    ' "$CONF_FILE" && rm -f "${CONF_FILE}.bak" && load_conf
 }
 
 # Funzione per rimuovere app da una lista
@@ -43,9 +52,26 @@ remove_from_list() {
     read -p "> " choice
     if [ "$choice" -gt 0 ] && [ "$choice" -lt "$i" ]; then
         local app_to_remove="${APPS[$((choice-1))]}"
-        local new_list=$(echo "$current_list" | sed "s/\b$app_to_remove\b//;s/||/|/g;s/^|//;s/|$//")
+        local new_list=""
+        local item=""
+        for item in "${APPS[@]}"; do
+            [ -z "$item" ] && continue
+            [ "$item" = "$app_to_remove" ] && continue
+            if [ -z "$new_list" ]; then
+                new_list="$item"
+            else
+                new_list="$new_list|$item"
+            fi
+        done
         save_val "$list_name" "$new_list"
         echo -e "${GREEN}✓ $app_to_remove rimosso!${NC}"
+        local updated_value="${!list_name}"
+        echo ""
+        if [ -z "$updated_value" ]; then
+            echo -e "${YELLOW}Lista aggiornata: (vuota)${NC}"
+        else
+            echo -e "${CYAN}Lista aggiornata:${NC} $updated_value"
+        fi
         read -p "Premi INVIO per continuare..."
     fi
 }
@@ -72,10 +98,13 @@ update_list() {
         fi
         
         echo "1) Aggiungi app (manuale)"
-        echo "2) Aggiungi app (seleziona da /Applications)"
-        echo "3) Rimuovi app"
-        echo "4) Reset totale"
-        echo "5) Indietro"
+        echo "2) Aggiungi app (da app aperte)"
+        echo "3) Aggiungi app (da /Applications)"
+        echo "4) Rimuovi app"
+        echo "5) Reset da app aperte"
+        echo "6) Reset da /Applications"
+        echo "7) Svuota lista"
+        echo "8) Indietro"
         echo ""
         read -p "> " choice
         
@@ -93,22 +122,32 @@ update_list() {
                 return
                 ;;
             2)
-                # Chiama lo script di selezione GUI
-                "$HOME/.config_editor_auto" "$1"
+                "$HOME/.config_editor_auto" "$1" add_running
                 return
                 ;;
             3)
-                remove_from_list "$1" "$2"
+                "$HOME/.config_editor_auto" "$1" add_file
                 return
                 ;;
             4)
-                read -p "Nuova lista (vuoto per cancellare tutto): " new_list
-                save_val "$1" "$new_list"
-                echo -e "${GREEN}✓ Lista aggiornata!${NC}"
-                read -p "Premi INVIO per continuare..."
+                remove_from_list "$1" "$2"
                 return
                 ;;
             5)
+                "$HOME/.config_editor_auto" "$1" reset_running
+                return
+                ;;
+            6)
+                "$HOME/.config_editor_auto" "$1" reset_file
+                return
+                ;;
+            7)
+                "$HOME/.config_editor_auto" "$1" reset_empty
+                echo -e "${GREEN}✓ Lista svuotata!${NC}"
+                read -p "Premi INVIO per continuare..."
+                return
+                ;;
+            8)
                 return
                 ;;
         esac
@@ -145,12 +184,17 @@ while true; do
     HEAVY_COUNT=$(echo "$HEAVY_APPS" | grep -o "|" | wc -l)
     HEAVY_COUNT=$((HEAVY_COUNT + 1))
     [ -z "$HEAVY_APPS" ] && HEAVY_COUNT=0
+
+    RESTORE_COUNT=$(echo "$RESTORE_APPS" | grep -o "|" | wc -l)
+    RESTORE_COUNT=$((RESTORE_COUNT + 1))
+    [ -z "$RESTORE_APPS" ] && RESTORE_COUNT=0
     
     echo -e "1) Notifiche:      $NOTIF_STATUS"
     echo -e "2) Chiusura:       $SAFE_STATUS"
     echo -e "3) Soglia CPU:     ${YELLOW}$CPU_THRESHOLD%${NC}"
     echo -e "4) Whitelist:      ${GREEN}$WHITELIST_COUNT app${NC}"
     echo -e "5) Heavy Apps:     ${YELLOW}$HEAVY_COUNT app${NC}"
+    echo -e "6) Restore Apps:   ${CYAN}$RESTORE_COUNT app${NC}"
     echo ""
     echo -e "${CYAN}s)${NC} Salva ed Esci  ${CYAN}q)${NC} Annulla"
     echo ""
@@ -178,6 +222,9 @@ while true; do
             ;;
         5) 
             update_list "HEAVY_APPS" "$HEAVY_APPS"
+            ;;
+        6)
+            update_list "RESTORE_APPS" "$RESTORE_APPS"
             ;;
         s|S|q|Q) 
             echo -e "${GREEN}Configurazione salvata.${NC}"

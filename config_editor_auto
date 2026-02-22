@@ -1,87 +1,164 @@
 #!/bin/bash
-# ~/.config_editor_auto v2.1 - SwiftBar Compatible con logging
+# ~/.config_editor_auto v3.0 - multi-source add/reset for list variables
 
 CONF_FILE="$HOME/.sleepmanager.conf"
-LIST_TYPE=$1
+LIST_TYPE="$1"
+ACTION="${2:-add_file}"
 LOG_FILE="$HOME/.sleepmanager_gui.log"
 
-# Log per debug
-echo "$(date): Chiamato con LIST_TYPE=$LIST_TYPE" >> "$LOG_FILE"
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S'): $*" >> "$LOG_FILE"
+}
 
-# Se chiamato senza argomento, esci
-if [ -z "$LIST_TYPE" ]; then
-    echo "$(date): ERRORE - Nessun argomento" >> "$LOG_FILE"
-    osascript -e 'display notification "Errore: parametro mancante" with title "Sleep Manager"'
-    exit 1
-fi
+notify() {
+    local msg="$1"
+    local sound="${2:-Glass}"
+    osascript -e "display notification \"$msg\" with title \"Sleep Manager\" sound name \"$sound\"" >/dev/null 2>&1
+}
 
-# Verifica che il config esista
-if [ ! -f "$CONF_FILE" ]; then
-    echo "$(date): ERRORE - Config non trovato" >> "$LOG_FILE"
-    osascript -e 'display notification "File di configurazione mancante" with title "Sleep Manager"'
-    exit 1
-fi
+normalize_list() {
+    local raw="$1"
+    awk -v input="$raw" 'BEGIN {
+        n=split(input, a, "|")
+        out=""
+        for (i=1; i<=n; i++) {
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", a[i])
+            if (a[i] != "" && !(a[i] in seen)) {
+                seen[a[i]] = 1
+                out = (out == "" ? a[i] : out "|" a[i])
+            }
+        }
+        print out
+    }'
+}
 
-# Log: tentativo apertura dialogo
-echo "$(date): Apertura dialogo AppleScript..." >> "$LOG_FILE"
-
-# AppleScript per selezione file - Con gestione errori migliorata
-FILE_PATH=$(osascript 2>&1 <<'EOF'
+get_running_apps() {
+    osascript <<'EOF_RUN'
+set AppleScript's text item delimiters to "\n"
 tell application "System Events"
-    activate
+    set appNames to name of every application process whose background only is false
 end tell
+return appNames as text
+EOF_RUN
+}
 
-delay 0.5
+get_installed_apps() {
+    find /Applications -maxdepth 2 -type d -name "*.app" -prune 2>/dev/null | \
+        sed 's#.*/##; s/\.app$//' | \
+        grep -v '^$' | \
+        sort -fu
+}
 
-tell application "Finder"
-    activate
-    try
-        set selectedFile to choose file with prompt "Seleziona un'Applicazione" of type {"com.apple.application-bundle"} default location (path to applications folder)
-        return POSIX path of selectedFile
-    on error errMsg
-        return ""
-    end try
-end tell
-EOF
-)
+choose_apps_from_lines() {
+    local prompt="$1"
+    shift
 
-echo "$(date): Risultato selezione: '$FILE_PATH'" >> "$LOG_FILE"
+    if [ "$#" -eq 0 ]; then
+        echo ""
+        return 0
+    fi
 
-# Se l'utente annulla, esci
-if [ -z "$FILE_PATH" ] || [ "$FILE_PATH" = "" ]; then
-    echo "$(date): Utente ha annullato" >> "$LOG_FILE"
-    exit 0
+    osascript - "$prompt" "$@" <<'EOF_PICK'
+on run argv
+    if (count of argv) < 2 then return ""
+    set promptText to item 1 of argv
+    set appList to items 2 thru -1 of argv
+    set selectedApps to choose from list appList with prompt promptText with multiple selections allowed without empty selection allowed
+    if selectedApps is false then return ""
+    set AppleScript's text item delimiters to "|"
+    return selectedApps as text
+end run
+EOF_PICK
+}
+
+write_list_value() {
+    local list_name="$1"
+    local value="$2"
+    local escaped="$value"
+    escaped="${escaped//\\/\\\\}"
+    escaped="${escaped//\"/\\\"}"
+
+    LIST_TYPE="$list_name" NEW_VAL="$escaped" perl -i.bak -pe '
+        if (/^$ENV{LIST_TYPE}=/) {
+            $_ = "$ENV{LIST_TYPE}=\"$ENV{NEW_VAL}\"\n";
+        }
+    ' "$CONF_FILE"
+    rm -f "${CONF_FILE}.bak"
+}
+
+if [ -z "$LIST_TYPE" ]; then
+    log "ERRORE - parametro lista mancante"
+    notify "Errore: parametro lista mancante" "Basso"
+    exit 1
 fi
 
-# Estrae il nome dell'app
-APP_NAME=$(basename "$FILE_PATH" .app)
-echo "$(date): App estratta: $APP_NAME" >> "$LOG_FILE"
+case "$LIST_TYPE" in
+    WHITELIST|HEAVY_APPS|RESTORE_APPS|FORCE_SLEEP_KILL_APPS) ;;
+    *)
+        log "ERRORE - LIST_TYPE non valido: $LIST_TYPE"
+        notify "Errore: lista non valida ($LIST_TYPE)" "Basso"
+        exit 1
+        ;;
+esac
 
-# Carica config attuale
+if [ ! -f "$CONF_FILE" ]; then
+    log "ERRORE - Config non trovato"
+    notify "File di configurazione mancante" "Basso"
+    exit 1
+fi
+
 source "$CONF_FILE"
 CURRENT_VAL="${!LIST_TYPE}"
 
-# Verifica duplicati
-if [[ "$CURRENT_VAL" == *"$APP_NAME"* ]]; then
-    echo "$(date): App già presente" >> "$LOG_FILE"
-    osascript -e "display notification \"$APP_NAME è già in $LIST_TYPE\" with title \"Sleep Manager\" sound name \"Basso\""
+log "Chiamato con LIST_TYPE=$LIST_TYPE ACTION=$ACTION"
+
+case "$ACTION" in
+    add_file|reset_file)
+        mapfile -t CANDIDATES < <(get_installed_apps)
+        PROMPT="Seleziona una o più app da /Applications"
+        ;;
+    add_running|reset_running)
+        mapfile -t CANDIDATES < <(get_running_apps | sed '/^$/d' | sort -fu)
+        PROMPT="Seleziona una o più app attualmente aperte"
+        ;;
+    reset_empty)
+        CANDIDATES=()
+        ;;
+    *)
+        log "ERRORE - ACTION non valida: $ACTION"
+        notify "Errore: azione non valida ($ACTION)" "Basso"
+        exit 1
+        ;;
+esac
+
+if [ "$ACTION" = "reset_empty" ]; then
+    write_list_value "$LIST_TYPE" ""
+    log "Lista $LIST_TYPE svuotata"
+    notify "$LIST_TYPE svuotata"
     exit 0
 fi
 
-# Aggiunge l'app
-if [ -z "$CURRENT_VAL" ]; then
-    NEW_VAL="$APP_NAME"
-else
-    NEW_VAL="$CURRENT_VAL|$APP_NAME"
+if [ "${#CANDIDATES[@]}" -eq 0 ]; then
+    log "Nessuna app disponibile per ACTION=$ACTION"
+    notify "Nessuna app disponibile" "Basso"
+    exit 0
 fi
 
-# Scrive nel config
-sed -i.bak "s|^$LIST_TYPE=.*|$LIST_TYPE=\"$NEW_VAL\"|" "$CONF_FILE"
-rm -f "${CONF_FILE}.bak"
+SELECTED_RAW="$(choose_apps_from_lines "$PROMPT" "${CANDIDATES[@]}")"
+SELECTED="$(normalize_list "$SELECTED_RAW")"
 
-echo "$(date): Successo - $APP_NAME aggiunto a $LIST_TYPE" >> "$LOG_FILE"
+if [ -z "$SELECTED" ]; then
+    log "Selezione annullata"
+    exit 0
+fi
 
-# Notifica successo
-osascript -e "display notification \"$APP_NAME aggiunto a $LIST_TYPE\" with title \"Sleep Manager\" sound name \"Glass\""
+case "$ACTION" in
+    add_*) NEW_VAL="$(normalize_list "$CURRENT_VAL|$SELECTED")" ;;
+    reset_*) NEW_VAL="$SELECTED" ;;
+esac
+
+write_list_value "$LIST_TYPE" "$NEW_VAL"
+log "Aggiornata $LIST_TYPE => $NEW_VAL"
+notify "$LIST_TYPE aggiornata"
 
 exit 0

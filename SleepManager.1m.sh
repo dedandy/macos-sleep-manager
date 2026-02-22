@@ -46,6 +46,28 @@ else
 fi
 echo "---"
 
+# --- LISTE APP (AGGREGATE) ---
+echo "🧩 Gestione Liste App | color=#7FDBFF"
+echo "-- 🛡️ Whitelist"
+echo "--- ➕ Aggiungi da App Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=add_running terminal=false refresh=true"
+echo "--- ➕ Aggiungi da /Applications | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=add_file terminal=false refresh=true"
+echo "--- ♻️ Reset da App Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=reset_running terminal=false refresh=true"
+echo "--- ♻️ Reset da /Applications | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=reset_file terminal=false refresh=true"
+echo "--- 🧹 Svuota Lista | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=reset_empty terminal=false refresh=true"
+echo "-- 🌑 Heavy Apps"
+echo "--- ➕ Aggiungi da App Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=add_running terminal=false refresh=true"
+echo "--- ➕ Aggiungi da /Applications | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=add_file terminal=false refresh=true"
+echo "--- ♻️ Reset da App Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=reset_running terminal=false refresh=true"
+echo "--- ♻️ Reset da /Applications | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=reset_file terminal=false refresh=true"
+echo "--- 🧹 Svuota Lista | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=reset_empty terminal=false refresh=true"
+echo "-- 🔁 Restore Apps"
+echo "--- ➕ Aggiungi da App Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=add_running terminal=false refresh=true"
+echo "--- ➕ Aggiungi da /Applications | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=add_file terminal=false refresh=true"
+echo "--- ♻️ Reset da App Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=reset_running terminal=false refresh=true"
+echo "--- ♻️ Reset da /Applications | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=reset_file terminal=false refresh=true"
+echo "--- 🧹 Svuota Lista | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=reset_empty terminal=false refresh=true"
+echo "---"
+
 # --- WHITELIST ---
 echo "🛡️ Whitelist (Protette) | color=#00FF88"
 if [ -z "$WHITELIST" ]; then
@@ -59,7 +81,7 @@ else
     done
 fi
 # FIX CRITICO: Usa /bin/bash esplicito e passa l'argomento correttamente
-echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST terminal=false refresh=true"
+echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=add_file terminal=false refresh=true"
 
 echo "---"
 
@@ -75,7 +97,7 @@ else
         echo "-- ⚡ $app | shell=/bin/bash param1=-c param2='$REMOVE_CMD' terminal=false refresh=true"
     done
 fi
-echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS terminal=false refresh=true"
+echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=add_file terminal=false refresh=true"
 
 echo "---"
 
@@ -98,7 +120,7 @@ else
         echo "-- $status $app | shell=/bin/bash param1=-c param2='$REMOVE_CMD' terminal=false refresh=true"
     done
 fi
-echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS terminal=false refresh=true"
+echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=add_file terminal=false refresh=true"
 echo "-- 🔢 Max Tab Terminal: ${RESTORE_TERMINAL_MAX:-6} | color=gray"
 echo "-- Imposta 4 | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^RESTORE_TERMINAL_MAX=.*/RESTORE_TERMINAL_MAX=4/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
 echo "-- Imposta 6 | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^RESTORE_TERMINAL_MAX=.*/RESTORE_TERMINAL_MAX=6/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
@@ -171,7 +193,7 @@ else
         echo "-- 🧨 $app | shell=/bin/bash param1=-c param2='$REMOVE_CMD' terminal=false refresh=true"
     done
 fi
-echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=FORCE_SLEEP_KILL_APPS terminal=false refresh=true"
+echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=FORCE_SLEEP_KILL_APPS param3=add_file terminal=false refresh=true"
 
 echo "---"
 
@@ -187,5 +209,6 @@ else
     echo "-- 📊 Statistiche Uso (manca ~/.sleeplog) | color=orange"
 fi
 echo "-- 🔁 Ripristina App Ora | shell=\"$RESTORE_SCRIPT\" param1=--manual terminal=true refresh=false"
+echo "-- 🔄 Refresh Ora | shell=/bin/bash param1=-c param2='true' terminal=false refresh=true"
 echo "-- 🔄 Reinstalla Sistema | shell=\"$HOME/.sleepmanager_install\" terminal=true refresh=false color=orange"
 echo "-- 🐛 Debug Log GUI | shell=open param1=\"$HOME/.sleepmanager_gui.log\" terminal=false color=gray"

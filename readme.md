@@ -9,6 +9,7 @@ macOS Sleep Manager is a lightweight set of Bash scripts that improves standby b
 - Automatic handling of heavy apps and user-defined whitelists.
 - Restore apps at wake/login (best effort), including Terminal working directories.
 - SwiftBar menu for quick status, configuration, and tools.
+- Aggregated app-list controls with add/reset from running apps or `/Applications`.
 
 ## Requirements
 
@@ -60,6 +61,7 @@ source ~/.zshrc
   ```bash
   sleepconf
   ```
+  Available list actions include add/reset from running apps, add/reset from `/Applications`, and full list clear.
 
 ## Configuration
 
@@ -113,6 +115,10 @@ cp SleepManager.1m.sh ~/SwiftBar-Plugins/
 ```
 
 If you prefer symlinks and SwiftBar does not detect them, use the copy command above.
+
+New SwiftBar entries:
+- `🧩 Gestione Liste App`: centralized controls for `WHITELIST`, `HEAVY_APPS`, `RESTORE_APPS`.
+- `🔄 Refresh Ora`: immediate menu refresh after editing config from terminal.
 
 ## Installed Files
 
@@ -169,6 +175,11 @@ If you prefer symlinks and SwiftBar does not detect them, use the copy command a
 
 - Confirm `sleepwatcher` has Full Disk Access.
 - Make sure hooks are installed in `~/.sleep` and `~/.wakeup`.
+
+**I ran install and lost my custom lists**
+
+- `./install.sh` now preserves existing values from `~/.sleepmanager.conf` and only fills missing keys.
+- Each install creates a backup file: `~/.sleepmanager.conf.backup-YYYYmmdd-HHMMSS`.
 
 ## Uninstall
 

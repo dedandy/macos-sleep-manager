@@ -87,6 +87,15 @@ Reinstall/Upgrade pulito:
 ./uninstall.sh && ./install.sh
 ```
 
+Upgrade consigliato (mantiene setup e liste correnti):
+
+```bash
+./install.sh
+```
+
+Nota: `install.sh` crea un backup automatico prima della riscrittura:
+`~/.sleepmanager.conf.backup-YYYYmmdd-HHMMSS`
+
 Log rapido:
 
 ```bash
@@ -131,6 +140,10 @@ cp SleepManager.1m.sh ~/SwiftBar-Plugins/
 Se usi un symlink e il menu non appare, preferisci il file reale nella cartella plugin.
 
 Dal menu SwiftBar puoi impostare `STANDBY_DELAY_MINUTES` con i preset 15/30/60/120 minuti.
+Sono disponibili anche:
+- `🧩 Gestione Liste App` con azioni aggregate su `WHITELIST`, `HEAVY_APPS`, `RESTORE_APPS`.
+- Azioni di lista: aggiunta/reset da app aperte, aggiunta/reset da `/Applications`, svuota lista.
+- `🔄 Refresh Ora` per ricaricare subito il menu dopo modifiche fatte da terminale.
 
 ## Log Format
 
@@ -202,6 +215,14 @@ Nelle viste `sleeplog` default e `stats`, se presenti assertions bloccanti, appa
 
 - Controlla permessi Full Disk Access a `sleepwatcher`.
 - Verifica che `~/.sleep` e `~/.wakeup` siano eseguibili.
+
+**Ho reinstallato e ho perso la configurazione**
+
+- Verifica l'eventuale backup automatico più recente:
+  ```bash
+  ls -t ~/.sleepmanager.conf.backup-* | head -1
+  ```
+- Da questa versione, `./install.sh` preserva i valori esistenti e usa default solo per chiavi mancanti.
 
 ## Troubleshooting
 
