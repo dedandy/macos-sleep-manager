@@ -1,6 +1,6 @@
 #!/bin/bash
 # <bitbar.title>macOS Sleep Manager Monitor</bitbar.title>
-# <bitbar.version>v4.9.6</bitbar.version>
+# <bitbar.version>v4.9.7</bitbar.version>
 # <swiftbar.hideAbout>true</swiftbar.hideAbout>
 # <swiftbar.hideRunInTerminal>true</swiftbar.hideRunInTerminal>
 # <swiftbar.hideSwiftBar>true</swiftbar.hideSwiftBar>
