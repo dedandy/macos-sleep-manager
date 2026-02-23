@@ -1,5 +1,5 @@
 #!/bin/bash
-# ~/.config_editor_auto v3.0 - multi-source add/reset for list variables
+# ~/.config_editor_auto v3.1 - multi-source add/reset for list variables
 
 CONF_FILE="$HOME/.sleepmanager.conf"
 LIST_TYPE="$1"
@@ -14,6 +14,32 @@ notify() {
     local msg="$1"
     local sound="${2:-Glass}"
     osascript -e "display notification \"$msg\" with title \"Sleep Manager\" sound name \"$sound\"" >/dev/null 2>&1
+}
+
+compact_preview() {
+    local raw="$1"
+    local max_items="${2:-4}"
+    local out=""
+    local n=0
+    local item=""
+    local old_ifs="$IFS"
+    IFS='|'
+    for item in $raw; do
+        [ -z "$item" ] && continue
+        n=$((n + 1))
+        if [ "$n" -le "$max_items" ]; then
+            if [ -z "$out" ]; then
+                out="$item"
+            else
+                out="$out, $item"
+            fi
+        fi
+    done
+    IFS="$old_ifs"
+    if [ "$n" -gt "$max_items" ]; then
+        out="$out, +$((n - max_items))"
+    fi
+    echo "$out"
 }
 
 normalize_list() {
@@ -47,6 +73,16 @@ get_installed_apps() {
         sed 's#.*/##; s/\.app$//' | \
         grep -v '^$' | \
         sort -fu
+}
+
+load_candidates() {
+    # Bash 3.2 compatible array loading (no mapfile).
+    local source="$1"
+    CANDIDATES=()
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        CANDIDATES+=("$line")
+    done <<< "$source"
 }
 
 choose_apps_from_lines() {
@@ -114,11 +150,11 @@ log "Chiamato con LIST_TYPE=$LIST_TYPE ACTION=$ACTION"
 
 case "$ACTION" in
     add_file|reset_file)
-        mapfile -t CANDIDATES < <(get_installed_apps)
+        load_candidates "$(get_installed_apps)"
         PROMPT="Seleziona una o più app da /Applications"
         ;;
     add_running|reset_running)
-        mapfile -t CANDIDATES < <(get_running_apps | sed '/^$/d' | sort -fu)
+        load_candidates "$(get_running_apps | sed '/^$/d' | sort -fu)"
         PROMPT="Seleziona una o più app attualmente aperte"
         ;;
     reset_empty)
@@ -134,13 +170,13 @@ esac
 if [ "$ACTION" = "reset_empty" ]; then
     write_list_value "$LIST_TYPE" ""
     log "Lista $LIST_TYPE svuotata"
-    notify "$LIST_TYPE svuotata"
+    notify "$LIST_TYPE svuotata (0 app)"
     exit 0
 fi
 
 if [ "${#CANDIDATES[@]}" -eq 0 ]; then
-    log "Nessuna app disponibile per ACTION=$ACTION"
-    notify "Nessuna app disponibile" "Basso"
+    log "Nessuna app disponibile per ACTION=$ACTION LIST_TYPE=$LIST_TYPE"
+    notify "Nessuna app disponibile ($ACTION)" "Basso"
     exit 0
 fi
 
@@ -159,6 +195,15 @@ esac
 
 write_list_value "$LIST_TYPE" "$NEW_VAL"
 log "Aggiornata $LIST_TYPE => $NEW_VAL"
-notify "$LIST_TYPE aggiornata"
+SELECTED_COUNT="$(awk -F'|' '{print NF}' <<< "$SELECTED")"
+SELECTED_PREVIEW="$(compact_preview "$SELECTED")"
+case "$ACTION" in
+    add_*)
+        notify "$LIST_TYPE: aggiunte $SELECTED_COUNT app ($SELECTED_PREVIEW)"
+        ;;
+    reset_*)
+        notify "$LIST_TYPE: reset a $SELECTED_COUNT app ($SELECTED_PREVIEW)"
+        ;;
+esac
 
 exit 0

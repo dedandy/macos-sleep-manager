@@ -22,6 +22,19 @@ else
 fi
 [ -f "$VERSION_FILE" ] && source "$VERSION_FILE"
 
+count_apps() {
+    local list="$1"
+    if [ -z "$list" ]; then
+        echo 0
+    else
+        awk -F'|' '{print NF}' <<< "$list"
+    fi
+}
+
+WHITELIST_COUNT="$(count_apps "$WHITELIST")"
+HEAVY_COUNT="$(count_apps "$HEAVY_APPS")"
+RESTORE_COUNT="$(count_apps "$RESTORE_APPS")"
+
 # --- STATO BARRA ---
 LAST_DELTA=$(grep "DELTA:" "$LOG_FILE" 2>/dev/null | tail -1 | grep -o "\-[0-9]*%" | sed 's/-//' || echo "—")
 if [ "$LAST_DELTA" = "0%" ]; then
@@ -48,19 +61,20 @@ echo "---"
 
 # --- LISTE APP (AGGREGATE) ---
 echo "🧩 Gestione Liste App | color=#7FDBFF"
-echo "-- 🛡️ Whitelist"
+echo "-- Seleziona una lista e poi azione (aggiungi/reset/svuota) | color=gray size=11"
+echo "-- 🛡️ Whitelist ($WHITELIST_COUNT)"
 echo "--- ➕ Aggiungi da App Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=add_running terminal=false refresh=true"
 echo "--- ➕ Aggiungi da /Applications | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=add_file terminal=false refresh=true"
 echo "--- ♻️ Reset da App Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=reset_running terminal=false refresh=true"
 echo "--- ♻️ Reset da /Applications | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=reset_file terminal=false refresh=true"
 echo "--- 🧹 Svuota Lista | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=reset_empty terminal=false refresh=true"
-echo "-- 🌑 Heavy Apps"
+echo "-- 🌑 Heavy Apps ($HEAVY_COUNT)"
 echo "--- ➕ Aggiungi da App Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=add_running terminal=false refresh=true"
 echo "--- ➕ Aggiungi da /Applications | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=add_file terminal=false refresh=true"
 echo "--- ♻️ Reset da App Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=reset_running terminal=false refresh=true"
 echo "--- ♻️ Reset da /Applications | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=reset_file terminal=false refresh=true"
 echo "--- 🧹 Svuota Lista | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=reset_empty terminal=false refresh=true"
-echo "-- 🔁 Restore Apps"
+echo "-- 🔁 Restore Apps ($RESTORE_COUNT)"
 echo "--- ➕ Aggiungi da App Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=add_running terminal=false refresh=true"
 echo "--- ➕ Aggiungi da /Applications | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=add_file terminal=false refresh=true"
 echo "--- ♻️ Reset da App Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=reset_running terminal=false refresh=true"
@@ -69,7 +83,7 @@ echo "--- 🧹 Svuota Lista | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RES
 echo "---"
 
 # --- WHITELIST ---
-echo "🛡️ Whitelist (Protette) | color=#00FF88"
+echo "🛡️ Whitelist (Protette: $WHITELIST_COUNT) | color=#00FF88"
 if [ -z "$WHITELIST" ]; then
     echo "-- (vuota) | color=gray"
 else
@@ -80,13 +94,12 @@ else
         echo "-- ✓ $app | shell=/bin/bash param1=-c param2='$REMOVE_CMD' terminal=false refresh=true"
     done
 fi
-# FIX CRITICO: Usa /bin/bash esplicito e passa l'argomento correttamente
-echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=add_file terminal=false refresh=true"
+echo "-- Gestione modifiche: usa \"🧩 Gestione Liste App\" sopra | color=gray size=11"
 
 echo "---"
 
 # --- HEAVY APPS ---
-echo "🌑 Heavy Apps (Kill allo Sleep) | color=#FF9500"
+echo "🌑 Heavy Apps (Kill allo Sleep: $HEAVY_COUNT) | color=#FF9500"
 if [ -z "$HEAVY_APPS" ]; then
     echo "-- (vuota) | color=gray"
 else
@@ -97,12 +110,12 @@ else
         echo "-- ⚡ $app | shell=/bin/bash param1=-c param2='$REMOVE_CMD' terminal=false refresh=true"
     done
 fi
-echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=add_file terminal=false refresh=true"
+echo "-- Gestione modifiche: usa \"🧩 Gestione Liste App\" sopra | color=gray size=11"
 
 echo "---"
 
 # --- RESTORE APPS ---
-echo "🔁 Restore Apps (Wake/Login) | color=#6FE0FF"
+echo "🔁 Restore Apps (Wake/Login: $RESTORE_COUNT) | color=#6FE0FF"
 if [ -z "$RESTORE_APPS" ]; then
     echo "-- (vuota) | color=gray"
 else
@@ -120,7 +133,7 @@ else
         echo "-- $status $app | shell=/bin/bash param1=-c param2='$REMOVE_CMD' terminal=false refresh=true"
     done
 fi
-echo "-- ➕ Aggiungi App... | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=add_file terminal=false refresh=true"
+echo "-- Gestione modifiche: usa \"🧩 Gestione Liste App\" sopra | color=gray size=11"
 echo "-- 🔢 Max Tab Terminal: ${RESTORE_TERMINAL_MAX:-6} | color=gray"
 echo "-- Imposta 4 | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^RESTORE_TERMINAL_MAX=.*/RESTORE_TERMINAL_MAX=4/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
 echo "-- Imposta 6 | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^RESTORE_TERMINAL_MAX=.*/RESTORE_TERMINAL_MAX=6/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
