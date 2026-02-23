@@ -1,4 +1,4 @@
 #!/bin/bash
 # Central version for scripts and menus
 
-SM_VERSION="4.9.8"
+SM_VERSION="4.9.9"
