@@ -104,7 +104,7 @@ fi
 ps -u "$USER" -o %cpu,comm | sed '1d' | while read -r cpu comm; do
     app_name=$(basename -- "$comm")
     if echo "$app_name" | grep -qE "Finder|WindowServer|ControlCenter|Dock|WallpaperAgent|$WHITELIST"; then continue; fi
-    if echo "$app_name" | grep -qE "RTProtectionDaemon|Malwarebytes|Logi|security"; then
+    if echo "$app_name" | grep -qE "RTProtectionDaemon|Malwarebytes|security"; then
         pkill -STOP -f "$app_name"
     elif (( $(echo "$cpu >= $CPU_THRESHOLD" | bc -l) )) || [[ "$HEAVY_APPS" =~ "$app_name" ]]; then
         echo "$app_name" >> "$HOME/.sleep_killed_apps"

@@ -14,10 +14,11 @@ cp "$LOCAL_VERSION_FILE" "$VERSION_FILE"
 cp config_editor "$HOME/.sleepmanager_editor"
 cp config_editor_auto "$HOME/.config_editor_auto"
 cp install.sh "$HOME/.sleepmanager_install"
+cp quicklaunch "$HOME/.quicklaunch"
 
 chmod +x "$HOME/.sleep" "$HOME/.wakeup" "$HOME/.sleeplog" \
          "$HOME/.sleepmanager_restore" "$HOME/.sleepmanager_editor" "$HOME/.config_editor_auto" "$VERSION_FILE" \
-         "$HOME/.sleepmanager_install"
+         "$HOME/.sleepmanager_install" "$HOME/.quicklaunch"
 
 echo -e "${BLUE}[2/4] Scansione applicazioni...${NC}"
 
@@ -64,6 +65,7 @@ FORCE_SLEEP_KILL_APPS_VAL="${FORCE_SLEEP_KILL_APPS:-WhatsApp|Google Chrome}"
 WHITELIST_VAL="${WHITELIST-$WHITELIST_STR}"
 HEAVY_APPS_VAL="${HEAVY_APPS-$HEAVY_STR}"
 RESTORE_APPS_VAL="${RESTORE_APPS:-Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal}"
+QUICK_LAUNCH_APPS_VAL="${QUICK_LAUNCH_APPS:-Safari|Notes}"
 RESTORE_TERMINAL_MAX_VAL="${RESTORE_TERMINAL_MAX:-6}"
 LOG_ASSERTIONS_VAL="${LOG_ASSERTIONS:-true}"
 TOGGLE_BLUETOOTH_ON_SLEEP_VAL="${TOGGLE_BLUETOOTH_ON_SLEEP:-false}"
@@ -98,6 +100,9 @@ HEAVY_APPS="$HEAVY_APPS_VAL"
 
 # Restore Apps: Riaperte al wake/login se non sono in esecuzione
 RESTORE_APPS="$RESTORE_APPS_VAL"
+
+# Quick Launch Apps: avviate con un comando
+QUICK_LAUNCH_APPS="$QUICK_LAUNCH_APPS_VAL"
 
 # Restore Terminal: massimo numero di tab da ripristinare
 RESTORE_TERMINAL_MAX=$RESTORE_TERMINAL_MAX_VAL
@@ -161,6 +166,7 @@ if ! grep -q "alias sleeplog=" "$HOME/.zshrc" 2>/dev/null; then
 # macOS Sleep Manager v4.7
 alias sleeplog='~/.sleeplog'
 alias sleepconf='~/.sleepmanager_editor'
+alias quicklaunch='~/.quicklaunch'
 EOFZSH
     echo -e "${YELLOW}⚠️  Aggiunti alias a .zshrc. Esegui: source ~/.zshrc${NC}"
 fi

@@ -19,6 +19,9 @@ AGGRESSIVE_POWER_PROFILE=${AGGRESSIVE_POWER_PROFILE:-false}
 # Riattiva rete e scongela processi
 sudo pmset -a tcpkeepalive 1 proximitywake 1
 
+# Riavvia Dock per ripristinare funzionalità UI (Mission Control, full-screen)
+killall Dock 2>/dev/null
+
 # Restore power settings if snapshot exists
 if [ -f "$PMSET_SNAPSHOT_FILE" ]; then
     get_pmset_val() {
@@ -43,7 +46,7 @@ if [ -f "$PMSET_SNAPSHOT_FILE" ]; then
         [ -n "$AUTOPOWEROFF_VAL" ] && sudo pmset -a autopoweroff "$AUTOPOWEROFF_VAL"
     fi
 fi
-pkill -CONT -f "RTProtectionDaemon|Malwarebytes|virus|security|Logi"
+pkill -CONT -f "RTProtectionDaemon|Malwarebytes|virus|security"
 
 # Registra dati per il prossimo log di uso attivo
 BATT_WAKE=$(pmset -g batt | grep -o "[0-9]*%" | head -1)

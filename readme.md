@@ -82,6 +82,7 @@ Key options include:
 - `WHITELIST="App A|App B"`
 - `HEAVY_APPS="App A|App B"`
 - `RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal"`
+- `QUICK_LAUNCH_APPS="Safari|Notes"`
 - `RESTORE_TERMINAL_MAX=6`
 - `LOG_ASSERTIONS=true`
 - `TOGGLE_BLUETOOTH_ON_SLEEP=false`
@@ -116,9 +117,24 @@ cp SleepManager.1m.sh ~/SwiftBar-Plugins/
 
 If you prefer symlinks and SwiftBar does not detect them, use the copy command above.
 
-New SwiftBar entries:
-- `🧩 Gestione Liste App`: centralized controls for `WHITELIST`, `HEAVY_APPS`, `RESTORE_APPS`.
-- `🔄 Refresh Ora`: immediate menu refresh after editing config from terminal.
+New SwiftBar interface (v4.9.12):
+- `⚡ AZIONI RAPIDE`: Quick Launch all, Sleep Now, Refresh
+- `🧩 Gestione Liste`: centralized controls for all lists
+- `📋 Liste DettagliATE`: view/remove individual apps
+- `⚙️ Impostazioni`: toggle settings
+- `🔧 Strumenti`: editor, logs, restore, reinstall
+
+## Quick Launch
+
+Launch all apps defined in `QUICK_LAUNCH_APPS` with a single command:
+
+```bash
+~/.quicklaunch
+# or
+quicklaunch  # (alias)
+```
+
+Available from both SwiftBar and terminal.
 
 ## Installed Files
 

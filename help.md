@@ -54,6 +54,7 @@ Dettagli:
 - `WHITELIST`: app sempre protette dalla chiusura.
 - `HEAVY_APPS`: app chiuse allo sleep e riaperte al wake solo se su alimentazione.
 - `RESTORE_APPS`: app riaperte al wake e al login se non sono gia' in esecuzione.
+- `QUICK_LAUNCH_APPS`: app avviabili con un comando (`~/.quicklaunch`).
 - `RESTORE_TERMINAL_MAX`: numero massimo di tab ripristinate nel Terminale.
 - `LOG_ASSERTIONS`: aggiunge snapshot e top assertions ai log.
 - `TOGGLE_BLUETOOTH_ON_SLEEP`: spegne il Bluetooth allo sleep e lo riattiva al wake (richiede blueutil).
@@ -139,11 +140,42 @@ cp SleepManager.1m.sh ~/SwiftBar-Plugins/
 
 Se usi un symlink e il menu non appare, preferisci il file reale nella cartella plugin.
 
-Dal menu SwiftBar puoi impostare `STANDBY_DELAY_MINUTES` con i preset 15/30/60/120 minuti.
-Sono disponibili anche:
-- `🧩 Gestione Liste App` con azioni aggregate su `WHITELIST`, `HEAVY_APPS`, `RESTORE_APPS`.
-- Azioni di lista: aggiunta/reset da app aperte, aggiunta/reset da `/Applications`, svuota lista.
-- `🔄 Refresh Ora` per ricaricare subito il menu dopo modifiche fatte da terminale.
+### Interfaccia SwiftBar (v4.9.12)
+
+L'interfaccia e' stata riorganizzata con le seguenti sezioni:
+
+1. **⚡ AZIONI RAPIDE**: accesso immediato a funzioni frequenti
+   - `🚀 Avvia Tutte`: avvia tutte le app in `QUICK_LAUNCH_APPS`
+   - `💤 Sleep Ora`: metti subito in sleep
+   - `🔄 Refresh`: ricarica il menu
+
+2. **🧩 Gestione Liste**: CRUD aggregato su tutte le liste
+   - Per ogni lista: aggiungi/reset/svuota da app aperte o da /Applications
+
+3. **📋 Liste Dettagliate**: visualizza e rimuovi singole app
+   - Whitelist, Heavy Apps, Restore, Quick Launch
+
+4. **⚙️ Impostazioni**: toggle rapidi e preset
+
+5. **🔧 Strumenti**: accesso a editor, log, restore, reinstalla
+
+### Quick Launch
+
+Nuova lista per avviare piu' app con un solo comando:
+
+```bash
+~/.quicklaunch
+# o
+quicklaunch  # (alias)
+```
+
+Configurazione in `~/.sleepmanager.conf`:
+
+```bash
+QUICK_LAUNCH_APPS="Safari|Notes|Music"
+```
+
+Gestione da SwiftBar o terminale (`~/.sleepmanager_editor` opzione 7).
 
 ## Log Format
 
@@ -210,6 +242,13 @@ Nelle viste `sleeplog` default e `stats`, se presenti assertions bloccanti, appa
   ```bash
   launchctl list | grep com.sleepmanager.restore
   ```
+
+**Mission Control e gesture mouse non funzionano dopo wake**
+
+- Rimosso il blocco/restart dei driver Logi Options Plus che causava perdita di stato accessibility.
+- Aggiunto riavvio del Dock al wake per ripristinare correttamente le funzionalità UI.
+
+**Video full-screen non funziona (YouTube/Netflix)**
 
 **I log non si aggiornano**
 

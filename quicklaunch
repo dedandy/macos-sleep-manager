@@ -1,0 +1,25 @@
+#!/bin/bash
+# quicklaunch - Avvia tutte le app nella lista QUICK_LAUNCH_APPS
+CONF_FILE="$HOME/.sleepmanager.conf"
+
+if [ ! -f "$CONF_FILE" ]; then
+    echo "Config non trovata: $CONF_FILE"
+    exit 1
+fi
+
+source "$CONF_FILE"
+
+if [ -z "$QUICK_LAUNCH_APPS" ]; then
+    echo "Nessuna app in QUICK_LAUNCH_APPS"
+    exit 0
+fi
+
+IFS='|' read -ra APPS <<< "$QUICK_LAUNCH_APPS"
+for app in "${APPS[@]}"; do
+    [ -z "$app" ] && continue
+    if pgrep -x "$app" >/dev/null 2>&1; then
+        echo "$app gia in esecuzione"
+    else
+        open -a "$app" && echo "Avviato: $app" || echo "Fallito: $app"
+    fi
+done

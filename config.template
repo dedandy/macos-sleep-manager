@@ -49,6 +49,9 @@ HEAVY_APPS="Google Chrome|Firefox|Adobe Photoshop"
 # App da riaprire al wake/login (best effort), separate da |
 RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal"
 
+# Quick Launch Apps - App da avviare con un solo comando (terminale + SwiftBar)
+QUICK_LAUNCH_APPS="Safari|Notes"
+
 # Numero massimo di tab Terminal da ripristinare
 RESTORE_TERMINAL_MAX=6
 

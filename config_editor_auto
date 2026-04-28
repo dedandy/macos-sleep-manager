@@ -48,7 +48,7 @@ normalize_list() {
         n=split(input, a, "|")
         out=""
         for (i=1; i<=n; i++) {
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", a[i])
+            gsub(/^[ \t]+|[ \t]+$/, "", a[i])
             if (a[i] != "" && !(a[i] in seen)) {
                 seen[a[i]] = 1
                 out = (out == "" ? a[i] : out "|" a[i])
@@ -129,7 +129,7 @@ if [ -z "$LIST_TYPE" ]; then
 fi
 
 case "$LIST_TYPE" in
-    WHITELIST|HEAVY_APPS|RESTORE_APPS|FORCE_SLEEP_KILL_APPS) ;;
+    WHITELIST|HEAVY_APPS|RESTORE_APPS|FORCE_SLEEP_KILL_APPS|QUICK_LAUNCH_APPS) ;;
     *)
         log "ERRORE - LIST_TYPE non valido: $LIST_TYPE"
         notify "Errore: lista non valida ($LIST_TYPE)" "Basso"
