@@ -1,5 +1,5 @@
 #!/bin/bash
-# ~/.sleeplog v4.7.4
+# ~/.sleeplog v4.9.15
 LOG_FILE="$HOME/.sleeplog_history"
 DIAG_LOG_FILE="$HOME/.sleepmanager_diagnose"
 C_CYAN='\033[1;36m'; C_YELLOW='\033[1;33m'; C_GREEN='\033[0;32m'; C_RED='\033[0;31m'; C_GRAY='\033[0;90m'; NC='\033[0m'
@@ -13,7 +13,8 @@ format_output() {
     sed "s/DELTA: -[1-9]%/$(echo -e "${C_RED}&${NC}")/g" | \
     sed "s/\[KILL\]/$(echo -e "${C_RED}🔪 KILL${NC}")/g" | \
     sed "s/\[RESTORE\]/$(echo -e "${C_GREEN}↩︎ RESTORE${NC}")/g" | \
-    sed "s/\[POSTPONE\]/$(echo -e "${C_YELLOW}⏸ POSTPONE${NC}")/g"
+    sed "s/\[POSTPONE\]/$(echo -e "${C_YELLOW}⏸ POSTPONE${NC}")/g" | \
+    sed "s/\[PRESERVE\]/$(echo -e "${C_GREEN}🛟 PRESERVE${NC}")/g"
 }
 
 usage() {
@@ -22,7 +23,7 @@ Uso:
   sleeplog                      Ultimi eventi (default)
   sleeplog last                 Ultima sessione completa
   sleeplog today|yesterday|week Eventi filtrati per data
-  sleeplog stats                Statistiche aggregate
+  sleeplog stats [scope]        Statistiche aggregate
   sleeplog battery [scope]      Batteria sleep/wake per sessione
   sleeplog apps [scope]         App kill/restore per sessione
   sleeplog kills [scope]        Solo app killate (top)
@@ -88,33 +89,51 @@ last_session() {
 battery_summary() {
     local input="$1"
     awk '
-        /^==== SESSION_START/ { session = $0; sleep_batt = ""; wake_batt = ""; delta = "" }
+        function battery_value(value) {
+            match(value, /[0-9]+%/)
+            return substr(value, RSTART, RLENGTH - 1) + 0
+        }
+        /^==== SESSION_START/ { session = $0 }
         /ACTION: SLEEP/ {
-            match($0, /BATT: [0-9]+%/)
-            sleep_batt = substr($0, RSTART + 6, RLENGTH - 6)
+            sleep_session = session
+            sleep_batt = battery_value($0)
         }
         /ACTION: WAKE/ {
-            match($0, /BATT: [0-9]+%/)
-            wake_batt = substr($0, RSTART + 6, RLENGTH - 6)
-            match($0, /DELTA: -[0-9]+%/)
-            delta = substr($0, RSTART + 8, RLENGTH - 8)
-        }
-        /^==== SESSION_END/ {
-            if (sleep_batt != "" || wake_batt != "") {
-                printf "%s\nACTION: SLEEP | BATT: %s\nACTION: WAKE | BATT: %s | DELTA: -%s\n\n", session, sleep_batt, wake_batt, delta
+            wake_batt = battery_value($0)
+            if (sleep_session != "") {
+                delta = sleep_batt - wake_batt
+                if (delta < 0) delta = 0
+                printf "%s\nACTION: SLEEP | BATT: %d%%\nACTION: WAKE | BATT: %d%% | DELTA: -%d%%\n\n", sleep_session, sleep_batt, wake_batt, delta
+                sleep_session = ""
             }
         }
     ' <<< "$input" | format_output
 }
 
 apps_summary() {
-    awk '/\[KILL\]|\[RESTORE\]|\[POSTPONE\]/ {print}' | format_output
+    awk '
+        /\[KILL\]/ { line = $0; sub(/^.*\[KILL\] /, "", line); sub(/ \([^)]*\)$/, "", line); kills[line]++ }
+        /\[RESTORE\]/ { line = $0; sub(/^.*\[RESTORE\] /, "", line); restores[line]++ }
+        /\[POSTPONE\]/ { line = $0; sub(/^.*\[POSTPONE\] /, "", line); postponed[line]++ }
+        /\[PRESERVE\]/ { preserved++ }
+        END {
+            for (app in kills) printf "[KILL] %s | COUNT: %d\n", app, kills[app]
+            for (app in restores) printf "[RESTORE] %s | COUNT: %d\n", app, restores[app]
+            for (app in postponed) printf "[POSTPONE] %s | COUNT: %d\n", app, postponed[app]
+            if (preserved) printf "[PRESERVE] sessioni mantenute | COUNT: %d\n", preserved
+        }
+    ' | sort | format_output
 }
 
 kills_top() {
-    awk '/\[KILL\]/ {print $2}' | sort | uniq -c | sort -nr | awk '
+    awk '/\[KILL\]/ {
+        line = $0
+        sub(/^.*\[KILL\] /, "", line)
+        sub(/ \([^)]*\)$/, "", line)
+        print line
+    }' | sort | uniq -c | sort -nr | awk '
         {
-            count=$1; app=$2
+            count=$1; $1=""; sub(/^ /, ""); app=$0
             color="\033[0;90m"; reset="\033[0m"
             if (count >= 5) color="\033[0;31m"
             else if (count >= 2) color="\033[1;33m"
@@ -133,7 +152,7 @@ scope_input() {
             filter_sessions_by_dates "$(build_date_set 1)"
             ;;
         yesterday)
-            filter_sessions_by_dates "$(build_date_set 2)" | awk 'BEGIN{d=strftime("%Y-%m-%d", systime()-86400)} /^==== SESSION_START/ {show=index($0,d)>0} {if (show) print}'
+            filter_sessions_by_dates "$(date -v-1d +%Y-%m-%d)"
             ;;
         week)
             filter_sessions_by_dates "$(build_date_set 7)"
@@ -158,8 +177,19 @@ case "$1" in
     stats)
         show_assertion_alerts
         echo -e "${C_CYAN}📊 STATISTICHE VEGLIA/SONNO${NC}"
-        grep "AWAKE:" "$LOG_FILE" | awk -F'|' '{print $3, $4}' | sed 's/AWAKE: //; s/m //; s/USED: -//; s/%//' | \
-        awk '{min+=$1; used+=$2} END {printf "Tempo totale acceso: %dm\nBatteria usata in veglia: %d%%\n", min, used}'
+        if [ -n "$2" ]; then
+            stats_input=$(scope_input "$2")
+        else
+            stats_input=$(cat "$LOG_FILE")
+        fi
+        awk '
+            /ACTION: SLEEP/ && /AWAKE:/ {
+                match($0, /AWAKE: [0-9]+m/); minutes += substr($0, RSTART + 7, RLENGTH - 8)
+                match($0, /USED: -[0-9]+%/); value = substr($0, RSTART + 7, RLENGTH - 8) + 0
+                if (value > 0) used += value
+            }
+            END { printf "Tempo totale acceso: %dm\nBatteria usata in veglia: %d%%\n", minutes, used }
+        ' <<< "$stats_input"
         ;;
     battery)
         input=$(scope_input "${2:-today}")

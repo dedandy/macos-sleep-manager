@@ -30,6 +30,8 @@ source "$CONF_FILE"
 echo -e "  ENABLE_NOTIFICATIONS = '$ENABLE_NOTIFICATIONS'"
 echo -e "  SAFE_QUIT_MODE = '$SAFE_QUIT_MODE'"
 echo -e "  CPU_THRESHOLD = '$CPU_THRESHOLD'"
+echo -e "  STANDBY_DELAY_MINUTES = '$STANDBY_DELAY_MINUTES'"
+echo -e "  PRESERVE_APP_SESSIONS = '$PRESERVE_APP_SESSIONS'"
 echo -e "  WHITELIST = '$WHITELIST'"
 echo -e "  HEAVY_APPS = '$HEAVY_APPS'"
 echo ""
@@ -50,6 +52,16 @@ fi
 if [ -z "$CPU_THRESHOLD" ]; then
     echo -e "${RED}✗ CPU_THRESHOLD vuoto${NC}"
     ((ERRORS++))
+fi
+
+if [ -z "$STANDBY_DELAY_MINUTES" ]; then
+    echo -e "${RED}✗ STANDBY_DELAY_MINUTES vuoto${NC}"
+    ((ERRORS++))
+fi
+
+if [ -z "$PRESERVE_APP_SESSIONS" ]; then
+    echo -e "${YELLOW}⚠ PRESERVE_APP_SESSIONS mancante, default=true${NC}"
+    PRESERVE_APP_SESSIONS=true
 fi
 
 # Whitelist e Heavy possono essere vuoti, ma devono esistere come variabile

@@ -8,6 +8,7 @@ Questa guida raccoglie tutte le opzioni disponibili, gli snippet di uso da termi
 - Tracciare i cicli sleep/wake e separare il consumo reale da quello in standby.
 - Gestire processi problematici, heavy apps e whitelist.
 - Ripristinare le app principali al wake e al login (best effort).
+- Preservare le sessioni app quando lo sleep e` breve.
 
 ## Architettura (sintesi)
 
@@ -30,7 +31,8 @@ Opzioni principali:
 ENABLE_NOTIFICATIONS=true
 SAFE_QUIT_MODE=true
 CPU_THRESHOLD=1.0
-STANDBY_DELAY_MINUTES=60
+STANDBY_DELAY_MINUTES=15
+PRESERVE_APP_SESSIONS=true
 DISABLE_DARKWAKE_FEATURES=true
 FORCE_SLEEP_KILL_APPS="WhatsApp|Google Chrome"
 WHITELIST="App A|App B"
@@ -48,7 +50,8 @@ Dettagli:
 - `ENABLE_NOTIFICATIONS`: abilita/disabilita notifiche (se previste dagli script).
 - `SAFE_QUIT_MODE`: chiusura controllata vs forzata dei processi.
 - `CPU_THRESHOLD`: soglia CPU (percento) oltre la quale un processo puo' essere chiuso allo sleep.
-- `STANDBY_DELAY_MINUTES`: minuti di standby prima dell'hibernation profonda.
+- `STANDBY_DELAY_MINUTES`: minuti di standby prima dell'hibernation profonda. 10-15 minuti sono adatti se vuoi riprendere presto.
+- `PRESERVE_APP_SESSIONS`: lascia vive le sessioni e disattiva i kill aggressivi allo sleep.
 - `DISABLE_DARKWAKE_FEATURES`: disabilita powernap/womp/ttyskeepawake/sleepservices durante lo sleep.
 - `FORCE_SLEEP_KILL_APPS`: lista di app da chiudere forzatamente allo sleep per evitare dark wake.
 - `WHITELIST`: app sempre protette dalla chiusura.
@@ -140,7 +143,7 @@ cp SleepManager.1m.sh ~/SwiftBar-Plugins/
 
 Se usi un symlink e il menu non appare, preferisci il file reale nella cartella plugin.
 
-### Interfaccia SwiftBar (v4.9.12)
+### Interfaccia SwiftBar (v4.9.15)
 
 L'interfaccia e' stata riorganizzata con le seguenti sezioni:
 
@@ -153,11 +156,16 @@ L'interfaccia e' stata riorganizzata con le seguenti sezioni:
    - Per ogni lista: aggiungi/reset/svuota da app aperte o da /Applications
 
 3. **📋 Liste Dettagliate**: visualizza e rimuovi singole app
-   - Whitelist, Heavy Apps, Restore, Quick Launch
+   - Whitelist, Heavy Apps, Force Kill, Restore, Quick Launch
 
 4. **⚙️ Impostazioni**: toggle rapidi e preset
 
 5. **🔧 Strumenti**: accesso a editor, log, restore, reinstalla
+
+Le impostazioni rapide includono ora:
+
+- toggle `PRESERVE_APP_SESSIONS`
+- preset `STANDBY_DELAY_MINUTES` a 10/15/30/60/120 minuti
 
 ### Quick Launch
 
@@ -175,7 +183,9 @@ Configurazione in `~/.sleepmanager.conf`:
 QUICK_LAUNCH_APPS="Safari|Notes|Music"
 ```
 
-Gestione da SwiftBar o terminale (`~/.sleepmanager_editor` opzione 7).
+Gestione da SwiftBar o terminale (`~/.sleepmanager_editor` opzione 9).
+
+Se vuoi mantenere le app aperte dopo chiusura coperchio o spegnimento schermo, lascia `PRESERVE_APP_SESSIONS=true` e imposta `STANDBY_DELAY_MINUTES=10` o `15`.
 
 ## Log Format
 
@@ -247,6 +257,12 @@ Nelle viste `sleeplog` default e `stats`, se presenti assertions bloccanti, appa
 
 - Rimosso il blocco/restart dei driver Logi Options Plus che causava perdita di stato accessibility.
 - Aggiunto riavvio del Dock al wake per ripristinare correttamente le funzionalità UI.
+
+**Voglio mantenere le sessioni quando chiudo il coperchio o spengo lo schermo**
+
+- Lascia `PRESERVE_APP_SESSIONS=true`.
+- Imposta `STANDBY_DELAY_MINUTES=10` o `15`.
+- Se vuoi tornare al comportamento aggressivo, imposta `PRESERVE_APP_SESSIONS=false`.
 
 **Video full-screen non funziona (YouTube/Netflix)**
 

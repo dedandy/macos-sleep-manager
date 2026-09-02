@@ -26,6 +26,12 @@ save_val() {
     ' "$CONF_FILE" && rm -f "${CONF_FILE}.bak" && load_conf
 }
 
+count_list_items() {
+    local value="$1"
+    [ -z "$value" ] && echo 0 && return
+    awk -F'|' '{print NF}' <<< "$value"
+}
+
 # Funzione per rimuovere app da una lista
 remove_from_list() {
     local list_name=$1
@@ -171,7 +177,7 @@ while true; do
     load_conf
     clear
     echo -e "${CYAN}═══════════════════════════════════════${NC}"
-    echo -e "${CYAN}  macOS SLEEP MANAGER EDITOR v4.9.14.13.12.11.10.9.8.7.6.5.4.3.3.2.1.0.1.0.6.5.4.3.2${NC}"
+    echo -e "${CYAN}  macOS SLEEP MANAGER EDITOR v4.9.15${NC}"
     echo -e "${CYAN}═══════════════════════════════════════${NC}\n"
     
     # Stato notifiche
@@ -187,31 +193,29 @@ while true; do
     else
         SAFE_STATUS="${YELLOW}⚡ Forzata${NC}"
     fi
+
+    if [ "$PRESERVE_APP_SESSIONS" = "true" ]; then
+        PRESERVE_STATUS="${GREEN}✓ ON${NC}"
+    else
+        PRESERVE_STATUS="${RED}✗ OFF${NC}"
+    fi
     
     # Conta app nelle liste
-    WHITELIST_COUNT=$(echo "$WHITELIST" | grep -o "|" | wc -l)
-    WHITELIST_COUNT=$((WHITELIST_COUNT + 1))
-    [ -z "$WHITELIST" ] && WHITELIST_COUNT=0
-    
-    HEAVY_COUNT=$(echo "$HEAVY_APPS" | grep -o "|" | wc -l)
-    HEAVY_COUNT=$((HEAVY_COUNT + 1))
-    [ -z "$HEAVY_APPS" ] && HEAVY_COUNT=0
-
-    RESTORE_COUNT=$(echo "$RESTORE_APPS" | grep -o "|" | wc -l)
-    RESTORE_COUNT=$((RESTORE_COUNT + 1))
-    [ -z "$RESTORE_APPS" ] && RESTORE_COUNT=0
-
-    QUICK_COUNT=$(echo "$QUICK_LAUNCH_APPS" | grep -o "|" | wc -l)
-    QUICK_COUNT=$((QUICK_COUNT + 1))
-    [ -z "$QUICK_LAUNCH_APPS" ] && QUICK_COUNT=0
+    WHITELIST_COUNT=$(count_list_items "$WHITELIST")
+    HEAVY_COUNT=$(count_list_items "$HEAVY_APPS")
+    FORCE_COUNT=$(count_list_items "$FORCE_SLEEP_KILL_APPS")
+    RESTORE_COUNT=$(count_list_items "$RESTORE_APPS")
+    QUICK_COUNT=$(count_list_items "$QUICK_LAUNCH_APPS")
     
     echo -e "1) Notifiche:      $NOTIF_STATUS"
     echo -e "2) Chiusura:       $SAFE_STATUS"
-    echo -e "3) Soglia CPU:     ${YELLOW}$CPU_THRESHOLD%${NC}"
-    echo -e "4) Whitelist:      ${GREEN}$WHITELIST_COUNT app${NC}"
-    echo -e "5) Heavy Apps:     ${YELLOW}$HEAVY_COUNT app${NC}"
-    echo -e "6) Restore Apps:   ${CYAN}$RESTORE_COUNT app${NC}"
-    echo -e "7) Quick Launch:   ${MAGENTA}$(echo "$QUICK_LAUNCH_APPS" | grep -o "|" | wc -l | xargs -I{} expr {} + 1 2>/dev/null || echo 0) app${NC}"
+    echo -e "3) Sessioni:       $PRESERVE_STATUS"
+    echo -e "4) Soglia CPU:     ${YELLOW}$CPU_THRESHOLD%${NC}"
+    echo -e "5) Whitelist:      ${GREEN}$WHITELIST_COUNT app${NC}"
+    echo -e "6) Heavy Apps:     ${YELLOW}$HEAVY_COUNT app${NC}"
+    echo -e "7) Force Kill:     ${RED}$FORCE_COUNT app${NC}"
+    echo -e "8) Restore Apps:   ${CYAN}$RESTORE_COUNT app${NC}"
+    echo -e "9) Quick Launch:   ${MAGENTA}$QUICK_COUNT app${NC}"
     echo ""
     echo -e "${CYAN}s)${NC} Salva ed Esci  ${CYAN}q)${NC} Annulla"
     echo ""
@@ -225,6 +229,9 @@ while true; do
             [[ "$SAFE_QUIT_MODE" == "true" ]] && save_val "SAFE_QUIT_MODE" "false" || save_val "SAFE_QUIT_MODE" "true"
             ;;
         3) 
+            [[ "$PRESERVE_APP_SESSIONS" == "true" ]] && save_val "PRESERVE_APP_SESSIONS" "false" || save_val "PRESERVE_APP_SESSIONS" "true"
+            ;;
+        4) 
             read -p "Nuova soglia CPU (0.1-100.0): " new_cpu
             if [[ "$new_cpu" =~ ^[0-9]+\.?[0-9]*$ ]]; then
                 save_val "CPU_THRESHOLD" "$new_cpu"
@@ -234,16 +241,19 @@ while true; do
             fi
             read -p "Premi INVIO per continuare..."
             ;;
-        4) 
+        5) 
             update_list "WHITELIST" "$WHITELIST"
             ;;
-        5) 
+        6) 
             update_list "HEAVY_APPS" "$HEAVY_APPS"
             ;;
-        6)
+        7)
+            update_list "FORCE_SLEEP_KILL_APPS" "$FORCE_SLEEP_KILL_APPS"
+            ;;
+        8)
             update_list "RESTORE_APPS" "$RESTORE_APPS"
             ;;
-        7)
+        9)
             update_list "QUICK_LAUNCH_APPS" "$QUICK_LAUNCH_APPS"
             ;;
         s|S|q|Q) 

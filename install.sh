@@ -1,5 +1,5 @@
 #!/bin/bash
-# install.sh v4.9.14 - Auto-configuration con scrittura diretta
+# install.sh v4.9.15 - Auto-configuration con scrittura diretta
 CYAN='\033[1;36m'; BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 CONF_FILE="$HOME/.sleepmanager.conf"
 VERSION_FILE="$HOME/.sleepmanager_version"
@@ -59,7 +59,8 @@ fi
 ENABLE_NOTIFICATIONS_VAL="${ENABLE_NOTIFICATIONS:-true}"
 SAFE_QUIT_MODE_VAL="${SAFE_QUIT_MODE:-true}"
 CPU_THRESHOLD_VAL="${CPU_THRESHOLD:-1.0}"
-STANDBY_DELAY_MINUTES_VAL="${STANDBY_DELAY_MINUTES:-60}"
+STANDBY_DELAY_MINUTES_VAL="${STANDBY_DELAY_MINUTES:-15}"
+PRESERVE_APP_SESSIONS_VAL="${PRESERVE_APP_SESSIONS:-true}"
 DISABLE_DARKWAKE_FEATURES_VAL="${DISABLE_DARKWAKE_FEATURES:-true}"
 FORCE_SLEEP_KILL_APPS_VAL="${FORCE_SLEEP_KILL_APPS:-WhatsApp|Google Chrome}"
 WHITELIST_VAL="${WHITELIST-$WHITELIST_STR}"
@@ -74,7 +75,7 @@ SHOW_STANDBY_ALERT_VAL="${SHOW_STANDBY_ALERT:-true}"
 
 # SCRITTURA DIRETTA del file config (non usa sed)
 cat > "$CONF_FILE" << EOF
-# macOS Sleep Manager v4.9.14 - Auto-Generated Config
+# macOS Sleep Manager v4.9.15 - Auto-Generated Config
 # Generato il: $(date '+%Y-%m-%d %H:%M:%S')
 
 # --- IMPOSTAZIONI GENERALI ---
@@ -84,6 +85,9 @@ CPU_THRESHOLD=$CPU_THRESHOLD_VAL
 
 # Ritardo Deep Sleep (minuti)
 STANDBY_DELAY_MINUTES=$STANDBY_DELAY_MINUTES_VAL
+
+# Preserva sessioni app allo sleep
+PRESERVE_APP_SESSIONS=$PRESERVE_APP_SESSIONS_VAL
 
 # Dark wake controls (true/false)
 DISABLE_DARKWAKE_FEATURES=$DISABLE_DARKWAKE_FEATURES_VAL
@@ -133,6 +137,8 @@ fi
 
 echo -e "${BLUE}[4/4] Configurazione Kernel...${NC}"
 sudo pmset -a tcpkeepalive 0 proximitywake 0 standby 1 standbydelayhigh 3600
+echo 'sleepmanager ALL=(root) NOPASSWD: /usr/bin/pmset *' | sudo tee /etc/sudoers.d/sleepmanager >/dev/null 2>&1
+sudo chmod 644 /etc/sudoers.d/sleepmanager
 sudo codesign --force --deep --sign - $(which sleepwatcher) 2>/dev/null
 brew services restart sleepwatcher
 

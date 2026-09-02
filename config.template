@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# macOS Sleep Manager v4.9.14 - File di Configurazione
+# macOS Sleep Manager v4.9.15 - File di Configurazione
 # Posizione: ~/.sleepmanager.conf
 # -----------------------------------------------------------------------------
 
@@ -22,8 +22,13 @@ CPU_THRESHOLD=1.0
 
 # Ritardo Deep Sleep (minuti)
 # Dopo quanti minuti di standby entra in hibernation profonda.
-# Esempi: 15, 30, 60, 120
-STANDBY_DELAY_MINUTES=60
+# Esempi: 10, 15, 30, 60, 120
+STANDBY_DELAY_MINUTES=15
+
+# Preserva sessioni app allo sleep (true/false)
+# true: evita kill aggressivi su app pesanti e mantiene le sessioni vive.
+# false: torna al comportamento aggressivo classico.
+PRESERVE_APP_SESSIONS=true
 
 # Dark wake controls (true/false)
 # Disabilita powernap/womp/ttyskeepawake/sleepservices durante sleep

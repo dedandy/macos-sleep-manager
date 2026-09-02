@@ -9,7 +9,8 @@ macOS Sleep Manager is a lightweight set of Bash scripts that improves standby b
 - Automatic handling of heavy apps and user-defined whitelists.
 - Restore apps at wake/login (best effort), including Terminal working directories.
 - SwiftBar menu for quick status, configuration, and tools.
-- Aggregated app-list controls with add/reset from running apps or `/Applications`.
+- Aggregated app-list controls with add/reset from running apps or `/Applications` for whitelist, heavy apps, force-kill, restore, and quick launch.
+- Optional preserve-session mode for short sleep periods.
 
 ## Requirements
 
@@ -76,7 +77,8 @@ Key options include:
 - `ENABLE_NOTIFICATIONS=true|false`
 - `SAFE_QUIT_MODE=true|false`
 - `CPU_THRESHOLD=1.0`
-- `STANDBY_DELAY_MINUTES=60`
+- `STANDBY_DELAY_MINUTES=15`
+- `PRESERVE_APP_SESSIONS=true`
 - `DISABLE_DARKWAKE_FEATURES=true`
 - `FORCE_SLEEP_KILL_APPS="WhatsApp|Google Chrome"`
 - `WHITELIST="App A|App B"`
@@ -93,7 +95,8 @@ Key options include:
 
 The restore workflow runs on wake and at login via a LaunchAgent. It reopens selected apps and restores Terminal working directories when no Terminal window is open.
 
-You can tune standby delay to improve short wakeups (example: 15, 30, 60, 120 minutes).
+You can tune standby delay to improve short wakeups (example: 10, 15, 30, 60, 120 minutes).
+If `PRESERVE_APP_SESSIONS=true`, the sleep hook keeps app sessions alive instead of hard-killing heavy apps.
 
 To reduce standby drain, you can disable dark-wake features during sleep (powernap, womp, ttyskeepawake, sleepservices).
 You can also force-kill specific apps that keep assertions (example: WhatsApp, Chrome).
@@ -117,12 +120,14 @@ cp SleepManager.1m.sh ~/SwiftBar-Plugins/
 
 If you prefer symlinks and SwiftBar does not detect them, use the copy command above.
 
-New SwiftBar interface (v4.9.12):
+New SwiftBar interface (v4.9.15):
 - `⚡ AZIONI RAPIDE`: Quick Launch all, Sleep Now, Refresh
 - `🧩 Gestione Liste`: centralized controls for all lists
 - `📋 Liste DettagliATE`: view/remove individual apps
 - `⚙️ Impostazioni`: toggle settings
 - `🔧 Strumenti`: editor, logs, restore, reinstall
+
+Current menu also includes quick toggles for `PRESERVE_APP_SESSIONS` and `STANDBY_DELAY_MINUTES` presets (10/15/30/60/120).
 
 ## Quick Launch
 

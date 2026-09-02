@@ -1,6 +1,6 @@
 #!/bin/bash
 # <bitbar.title>macOS Sleep Manager Monitor</bitbar.title>
-# <bitbar.version>v4.9.14</bitbar.version>
+# <bitbar.version>v4.9.15</bitbar.version>
 # <swiftbar.hideAbout>true</swiftbar.hideAbout>
 # <swiftbar.hideRunInTerminal>true</swiftbar.hideRunInTerminal>
 # <swiftbar.hideSwiftBar>true</swiftbar.hideSwiftBar>
@@ -12,160 +12,72 @@ RESTORE_SCRIPT="$HOME/.sleepmanager_restore"
 VERSION_FILE="$HOME/.sleepmanager_version"
 QUICKLAUNCH="$HOME/.quicklaunch"
 
-[ -f "$CONF_FILE" ] && source "$CONF_FILE" || {
+if [ ! -f "$CONF_FILE" ]; then
     echo "⚠️ Config mancante"
     echo "---"
-    echo "Esegui: ~/.sleepmanager_install | terminal=true"
+    echo "Esegui ~/.sleepmanager_install | terminal=true"
     exit 0
-}
+fi
+
+source "$CONF_FILE"
 [ -f "$VERSION_FILE" ] && source "$VERSION_FILE"
 
-count_apps() { [ -z "$1" ] && echo 0 || awk -F'|' '{print NF}' <<< "$1"; }
+# Conta elementi lista separati da barra verticale.
+count_apps() {
+    [ -z "$1" ] && echo 0 || awk -F'|' '{print NF}' <<< "$1"
+}
 
-WHITELIST_COUNT="$(count_apps "$WHITELIST")"
-HEAVY_COUNT="$(count_apps "$HEAVY_APPS")"
-RESTORE_COUNT="$(count_apps "$RESTORE_APPS")"
-QUICK_COUNT="$(count_apps "$QUICK_LAUNCH_APPS")"
+# Mostra lista compatta, senza duplicare tutte le azioni per ogni app.
+show_list() {
+    local label="$1"
+    local variable="$2"
+    local value="$3"
+    local count
+    count="$(count_apps "$value")"
+    echo "-- $label ($count) | color=gray"
+    echo "--- ✏️ Modifica | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=$variable terminal=true refresh=true"
+}
 
-# --- HEADER ---
-LAST_DELTA=$(grep "DELTA:" "$LOG_FILE" 2>/dev/null | tail -1 | grep -o "\-[0-9]*%" | sed 's/-//' || echo "—")
+LAST_DELTA=$(grep 'DELTA:' "$LOG_FILE" 2>/dev/null | tail -1 | sed -E 's/.*DELTA([^:]*): -?([0-9]+)%.*/\2%/' || true)
+[ -z "$LAST_DELTA" ] && LAST_DELTA="—"
 [ "$LAST_DELTA" = "0%" ] && STATUS_COLOR="darkgreen" || STATUS_COLOR="blue"
+
 echo "🔋 -$LAST_DELTA | color=$STATUS_COLOR"
 echo "---"
 [ -n "$SM_VERSION" ] && echo "v$SM_VERSION | color=gray size=11"
+echo "-- Sessioni: ${PRESERVE_APP_SESSIONS:-true} | color=gray size=11"
+echo "-- Standby: ${STANDBY_DELAY_MINUTES:-15}m | color=gray size=11"
 echo "---"
 
-# --- QUICK ACTIONS ---
-echo "⚡ AZIONI RAPIDE | color=#FFD60A size=13"
-echo "-- 🚀 Avvia Tutte | shell=\"$QUICKLAUNCH\" terminal=false refresh=true color=#30D158"
-echo "--- 💤 Sleep Ora | shell=/usr/bin/pmset param1=sleepnow terminal=false refresh=false color=#FF453A"
-echo "-- 🔄 Refresh | shell=/bin/bash param1=-c param2='true' terminal=false refresh=true"
+echo "⚡ Azioni rapide | color=#FFD60A size=13"
+echo "-- 🚀 Avvia quick launch | shell=\"$QUICKLAUNCH\" terminal=false refresh=true color=#30D158"
+echo "-- 💤 Sleep ora | shell=/usr/bin/pmset param1=sleepnow terminal=false refresh=false color=#FF453A"
 echo "---"
 
-# --- LISTE APP (AGGREGATE) ---
-echo "🧩 Gestione Liste | color=#7FDBFF"
-echo "-- Seleziona lista + azione | color=gray size=11"
-echo "-- 🛡️ Whitelist ($WHITELIST_COUNT)"
-echo "--- ➕ Da Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=add_running terminal=false refresh=true"
-echo "--- ➕ Da App | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=add_file terminal=false refresh=true"
-echo "--- ♻️ Reset | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=reset_file terminal=false refresh=true"
-echo "--- 🧹 Svuota | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=WHITELIST param3=reset_empty terminal=false refresh=true"
-echo "-- 🌑 Heavy ($HEAVY_COUNT)"
-echo "--- ➕ Da Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=add_running terminal=false refresh=true"
-echo "--- ➕ Da App | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=add_file terminal=false refresh=true"
-echo "--- ♻️ Reset | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=reset_file terminal=false refresh=true"
-echo "--- 🧹 Svuota | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=HEAVY_APPS param3=reset_empty terminal=false refresh=true"
-echo "-- 🔁 Restore ($RESTORE_COUNT)"
-echo "--- ➕ Da Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=add_running terminal=false refresh=true"
-echo "--- ➕ Da App | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=add_file terminal=false refresh=true"
-echo "--- ♻️ Reset | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=reset_file terminal=false refresh=true"
-echo "--- 🧹 Svuota | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=RESTORE_APPS param3=reset_empty terminal=false refresh=true"
-echo "-- 🚀 Quick Launch ($QUICK_COUNT)"
-echo "--- ➕ Da Aperte | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=QUICK_LAUNCH_APPS param3=add_running terminal=false refresh=true"
-echo "--- ➕ Da App | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=QUICK_LAUNCH_APPS param3=add_file terminal=false refresh=true"
-echo "--- ♻️ Reset | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=QUICK_LAUNCH_APPS param3=reset_file terminal=false refresh=true"
-echo "--- 🧹 Svuota | shell=/bin/bash param1=\"$EDITOR_AUTO\" param2=QUICK_LAUNCH_APPS param3=reset_empty terminal=false refresh=true"
+echo "📋 Liste app | color=#7FDBFF size=13"
+show_list "🛡️ Whitelist" "WHITELIST" "$WHITELIST"
+show_list "🌑 Heavy Apps" "HEAVY_APPS" "$HEAVY_APPS"
+show_list "💣 Force Kill" "FORCE_SLEEP_KILL_APPS" "$FORCE_SLEEP_KILL_APPS"
+show_list "🔁 Restore Apps" "RESTORE_APPS" "$RESTORE_APPS"
+show_list "🚀 Quick Launch" "QUICK_LAUNCH_APPS" "$QUICK_LAUNCH_APPS"
 echo "---"
 
-# --- DASHBOARD ---
-echo "📊 Ultimi Eventi | size=13 color=#00D9FF"
-if [ -f "$LOG_FILE" ]; then
-    tail -n 5 "$LOG_FILE" | grep -E "ACTION:" | sed 's/ACTION: //' | while read -r line; do
-        echo "-- $line | font=Menlo size=11"
-    done
-else
-    echo "-- Nessun log | color=gray"
-fi
+echo "📊 Log e report | color=#00D9FF size=13"
+echo "-- Ultima sessione | shell=\"$HOME/.sleeplog\" param1=last terminal=true"
+echo "-- Oggi | shell=\"$HOME/.sleeplog\" param1=today terminal=true"
+echo "-- Ieri | shell=\"$HOME/.sleeplog\" param1=yesterday terminal=true"
+echo "-- Settimana | shell=\"$HOME/.sleeplog\" param1=week terminal=true"
+echo "-- Batteria settimana | shell=\"$HOME/.sleeplog\" param1=battery param2=week terminal=true"
+echo "-- App settimana | shell=\"$HOME/.sleeplog\" param1=apps param2=week terminal=true"
+echo "-- Kill settimana | shell=\"$HOME/.sleeplog\" param1=kills param2=week terminal=true"
 echo "---"
 
-# --- LISTE DETTAGLIATE ---
-echo "📋 Whitelist 🛡️ | color=#00FF88"
-if [ -n "$WHITELIST" ]; then
-    IFS='|' read -ra APPS <<< "$WHITELIST"
-    for app in "${APPS[@]}"; do
-        [ -z "$app" ] && continue
-        REMOVE="perl -pi -e 's/(^|\|)\Q${app}\E(?=|\||$)//g; s/^\|//; s/\|\|/\|/g; s/\|$//' \"$CONF_FILE\""
-        echo "-- ✓ $app | shell=/bin/bash param1=-c param2='$REMOVE' terminal=false refresh=true"
-    done
-else
-    echo "-- (vuota) | color=gray"
-fi
-
-echo "---"
-echo "📋 Heavy Apps 🌑 | color=#FF9500"
-if [ -n "$HEAVY_APPS" ]; then
-    IFS='|' read -ra APPS <<< "$HEAVY_APPS"
-    for app in "${APPS[@]}"; do
-        [ -z "$app" ] && continue
-        REMOVE="perl -pi -e 's/(^|\|)\Q${app}\E(?=|\||$)//g; s/^\|//; s/\|\|/\|/g; s/\|$//' \"$CONF_FILE\""
-        echo "-- ⚡ $app | shell=/bin/bash param1=-c param2='$REMOVE' terminal=false refresh=true"
-    done
-else
-    echo "-- (vuota) | color=gray"
-fi
-
-echo "---"
-echo "📋 Restore 🔁 | color=#6FE0FF"
-if [ -n "$RESTORE_APPS" ]; then
-    IFS='|' read -ra APPS <<< "$RESTORE_APPS"
-    for app in "${APPS[@]}"; do
-        [ -z "$app" ] && continue
-        proc_name="$app"
-        [ "$app" = "Visual Studio Code" ] && proc_name="Code"
-        pgrep -x "$proc_name" >/dev/null 2>&1 && status="🟢" || status="⚪️"
-        REMOVE="perl -pi -e 's/(^|\|)\Q${app}\E(?=|\||$)//g; s/^\|//; s/\|\|/\|/g; s/\|$//' \"$CONF_FILE\""
-        echo "-- $status $app | shell=/bin/bash param1=-c param2='$REMOVE' terminal=false refresh=true"
-    done
-else
-    echo "-- (vuota) | color=gray"
-fi
-
-echo "---"
-echo "📋 Quick Launch 🚀 | color=#BF5AF2"
-if [ -n "$QUICK_LAUNCH_APPS" ]; then
-    IFS='|' read -ra APPS <<< "$QUICK_LAUNCH_APPS"
-    for app in "${APPS[@]}"; do
-        [ -z "$app" ] && continue
-        REMOVE="perl -pi -e 's/(^|\|)\Q${app}\E(?=|\||$)//g; s/^\|//; s/\|\|/\|/g; s/\|$//' \"$CONF_FILE\""
-        echo "-- ▶ $app | shell=/bin/bash param1=-c param2='open -a \"$app\"' terminal=false refresh=false"
-        echo "-- ✕ $app | shell=/bin/bash param1=-c param2='$REMOVE' terminal=false refresh=true"
-    done
-else
-    echo "-- (vuota) | color=gray"
-fi
-
-echo "---"
-
-# --- IMPOSTAZIONI ---
-echo "⚙️ Impostazioni | color=#5AC8FA"
-
-# Toggle Notifiche
-[ "$ENABLE_NOTIFICATIONS" = "true" ] && CMD_NOTIF="sed -i.bak 's/ENABLE_NOTIFICATIONS=true/ENABLE_NOTIFICATIONS=false/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'" || CMD_NOTIF="sed -i.bak 's/ENABLE_NOTIFICATIONS=false/ENABLE_NOTIFICATIONS=true/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'"
-[ "$ENABLE_NOTIFICATIONS" = "true" ] && echo "-- ✅ Notifiche | shell=/bin/bash param1=-c param2='$CMD_NOTIF' terminal=false refresh=true" || echo "-- ❌ Notifiche | shell=/bin/bash param1=-c param2='$CMD_NOTIF' terminal=false refresh=true"
-
-# Toggle Safe Quit
-[ "$SAFE_QUIT_MODE" = "true" ] && CMD_SAFE="sed -i.bak 's/SAFE_QUIT_MODE=true/SAFE_QUIT_MODE=false/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'" || CMD_SAFE="sed -i.bak 's/SAFE_QUIT_MODE=false/SAFE_QUIT_MODE=true/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'"
-[ "$SAFE_QUIT_MODE" = "true" ] && echo "-- ✅ Chiusura Sicura | shell=/bin/bash param1=-c param2='$CMD_SAFE' terminal=false refresh=true" || echo "-- ⚡ Chiusura Forzata | shell=/bin/bash param1=-c param2='$CMD_SAFE' terminal=false refresh=true"
-
-# Standby Delay
-echo "-- ⏱️ Standby: ${STANDBY_DELAY_MINUTES:-60}m | color=gray"
-echo "--- 15m | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^STANDBY_DELAY_MINUTES=.*/STANDBY_DELAY_MINUTES=15/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
-echo "--- 30m | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^STANDBY_DELAY_MINUTES=.*/STANDBY_DELAY_MINUTES=30/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
-echo "--- 60m | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^STANDBY_DELAY_MINUTES=.*/STANDBY_DELAY_MINUTES=60/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
-echo "--- 120m | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^STANDBY_DELAY_MINUTES=.*/STANDBY_DELAY_MINUTES=120/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
-
-# Max Terminal Tabs
-echo "-- 🔢 Max Terminal: ${RESTORE_TERMINAL_MAX:-6} | color=gray"
-echo "--- 4 tab | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^RESTORE_TERMINAL_MAX=.*/RESTORE_TERMINAL_MAX=4/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
-echo "--- 6 tab | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^RESTORE_TERMINAL_MAX=.*/RESTORE_TERMINAL_MAX=6/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
-echo "--- 8 tab | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^RESTORE_TERMINAL_MAX=.*/RESTORE_TERMINAL_MAX=8/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
-echo "---"
-
-# --- STRUMENTI ---
-echo "🔧 Strumenti | color=#FF9F0A"
-echo "⚙️ Editor Completo | shell=$HOME/.sleepmanager_editor terminal=true"
-echo "📜 Apri Log | shell=open terminal=false param1=-e param2=\"$LOG_FILE\""
-echo "-- 📊 Statistiche | shell=/bin/bash param1=-lc param2=\"\\\"$HOME/.sleeplog\\\" stats\" terminal=true"
-echo "-- 🔁 Restore Ora | shell=\"$RESTORE_SCRIPT\" param1=--manual terminal=true"
-echo "-- 🔄 Reinstalla | shell=\"$HOME/.sleepmanager_install\" terminal=true color=orange"
-echo "-- 📖 Guida | shell=open terminal=false param1=\"$HOME/help.md\""
+echo "⚙️ Impostazioni | color=#5AC8FA size=13"
+[ "$ENABLE_NOTIFICATIONS" = "true" ] && NOTIF_VALUE="false" || NOTIF_VALUE="true"
+echo "-- Notifiche: $ENABLE_NOTIFICATIONS | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^ENABLE_NOTIFICATIONS=.*/ENABLE_NOTIFICATIONS=$NOTIF_VALUE/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
+[ "$SAFE_QUIT_MODE" = "true" ] && SAFE_VALUE="false" || SAFE_VALUE="true"
+echo "-- Chiusura sicura: $SAFE_QUIT_MODE | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^SAFE_QUIT_MODE=.*/SAFE_QUIT_MODE=$SAFE_VALUE/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
+[ "$PRESERVE_APP_SESSIONS" = "true" ] && PRESERVE_VALUE="false" || PRESERVE_VALUE="true"
+echo "-- Preserva sessioni: $PRESERVE_APP_SESSIONS | shell=/bin/bash param1=-c param2=\"sed -i.bak 's/^PRESERVE_APP_SESSIONS=.*/PRESERVE_APP_SESSIONS=$PRESERVE_VALUE/' '$CONF_FILE' && rm -f '${CONF_FILE}.bak'\" terminal=false refresh=true"
+echo "-- Editor completo | shell=$HOME/.sleepmanager_editor terminal=true"
+echo "-- Ripristina app ora | shell=\"$RESTORE_SCRIPT\" param1=--manual terminal=true"

@@ -1,9 +1,10 @@
 #!/bin/bash
-# ~/.config_editor_auto v3.1 - multi-source add/reset for list variables
+# ~/.config_editor_auto v3.1 - multi-source add/reset/remove for list variables
 
 CONF_FILE="$HOME/.sleepmanager.conf"
 LIST_TYPE="$1"
 ACTION="${2:-add_file}"
+TARGET_ITEM="${3:-}"
 LOG_FILE="$HOME/.sleepmanager_gui.log"
 
 log() {
@@ -50,6 +51,23 @@ normalize_list() {
         for (i=1; i<=n; i++) {
             gsub(/^[ \t]+|[ \t]+$/, "", a[i])
             if (a[i] != "" && !(a[i] in seen)) {
+                seen[a[i]] = 1
+                out = (out == "" ? a[i] : out "|" a[i])
+            }
+        }
+        print out
+    }'
+}
+
+remove_item_from_list() {
+    local raw="$1"
+    local target="$2"
+    awk -v input="$raw" -v remove_item="$target" 'BEGIN {
+        n=split(input, a, "|")
+        out=""
+        for (i=1; i<=n; i++) {
+            gsub(/^[ \t]+|[ \t]+$/, "", a[i])
+            if (a[i] != "" && a[i] != remove_item && !(a[i] in seen)) {
                 seen[a[i]] = 1
                 out = (out == "" ? a[i] : out "|" a[i])
             }
@@ -160,6 +178,9 @@ case "$ACTION" in
     reset_empty)
         CANDIDATES=()
         ;;
+    remove_item)
+        CANDIDATES=()
+        ;;
     *)
         log "ERRORE - ACTION non valida: $ACTION"
         notify "Errore: azione non valida ($ACTION)" "Basso"
@@ -171,6 +192,19 @@ if [ "$ACTION" = "reset_empty" ]; then
     write_list_value "$LIST_TYPE" ""
     log "Lista $LIST_TYPE svuotata"
     notify "$LIST_TYPE svuotata (0 app)"
+    exit 0
+fi
+
+if [ "$ACTION" = "remove_item" ]; then
+    if [ -z "$TARGET_ITEM" ]; then
+        log "ERRORE - item mancante per remove_item"
+        notify "Errore: item mancante" "Basso"
+        exit 1
+    fi
+    NEW_VAL="$(remove_item_from_list "$CURRENT_VAL" "$TARGET_ITEM")"
+    write_list_value "$LIST_TYPE" "$NEW_VAL"
+    log "Rimosso $TARGET_ITEM da $LIST_TYPE => $NEW_VAL"
+    notify "$LIST_TYPE: rimosso $TARGET_ITEM"
     exit 0
 fi
 
