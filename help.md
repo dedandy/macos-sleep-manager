@@ -1,301 +1,322 @@
-# Manuale Tecnico - macOS Sleep Manager
+# Manuale operativo - macOS Sleep Manager
 
-Questa guida raccoglie tutte le opzioni disponibili, gli snippet di uso da terminale e le note operative per la versione corrente.
+Manuale pratico per installare, configurare, usare e diagnosticare macOS Sleep Manager.
 
-## Obiettivo
+## Cosa fa
 
-- Ridurre il consumo in standby con deep sleep e zero dark wakes.
-- Tracciare i cicli sleep/wake e separare il consumo reale da quello in standby.
-- Gestire processi problematici, heavy apps e whitelist.
-- Ripristinare le app principali al wake e al login (best effort).
-- Preservare le sessioni app quando lo sleep e` breve.
+Sleep Manager collega due hook di sistema agli eventi del Mac:
 
-## Architettura (sintesi)
+- `sleep` registra batteria e uso attivo, salva le impostazioni `pmset`, riduce i dark wake e gestisce i processi configurati.
+- `wakeup` registra la batteria al ritorno, calcola la perdita durante lo sleep, ripristina il profilo e riapre le app.
+- `sleeplog` legge lo storico e produce viste sintetiche.
+- `SleepManager.1m.sh` costruisce il menu SwiftBar.
+- `restore_apps.sh` riapre app e directory Terminal al wake/login.
 
-- `sleep`: eseguito all'evento di sleep, applica ottimizzazioni e logga il consumo.
-- `wakeup`: eseguito al wake, ripristina rete/processi e logga la sessione.
-- `sleeplog`: visualizza le statistiche e l'ultimo storico.
-- `~/.sleepmanager.conf`: unica fonte di configurazione.
+Configurazione unica:
 
-## Configurazione Completa
-
-File attivo:
-
-```bash
+~~~~text
 ~/.sleepmanager.conf
-```
+~~~~
 
-Opzioni principali:
+## Installazione
 
-```bash
-ENABLE_NOTIFICATIONS=true
-SAFE_QUIT_MODE=true
-CPU_THRESHOLD=1.0
-STANDBY_DELAY_MINUTES=15
-PRESERVE_APP_SESSIONS=true
-DISABLE_DARKWAKE_FEATURES=true
-FORCE_SLEEP_KILL_APPS="WhatsApp|Google Chrome"
-WHITELIST="App A|App B"
-HEAVY_APPS="App A|App B"
-RESTORE_APPS="Google Chrome|Visual Studio Code|WebStorm|Microsoft Teams|WireGuard|Docker|Terminal"
-RESTORE_TERMINAL_MAX=6
-LOG_ASSERTIONS=true
-TOGGLE_BLUETOOTH_ON_SLEEP=false
-AGGRESSIVE_POWER_PROFILE=false
-SHOW_STANDBY_ALERT=true
-```
+Prerequisiti:
 
-Dettagli:
+~~~~bash
+brew install sleepwatcher
+~~~~
 
-- `ENABLE_NOTIFICATIONS`: abilita/disabilita notifiche (se previste dagli script).
-- `SAFE_QUIT_MODE`: chiusura controllata vs forzata dei processi.
-- `CPU_THRESHOLD`: soglia CPU (percento) oltre la quale un processo puo' essere chiuso allo sleep.
-- `STANDBY_DELAY_MINUTES`: minuti di standby prima dell'hibernation profonda. 10-15 minuti sono adatti se vuoi riprendere presto.
-- `PRESERVE_APP_SESSIONS`: lascia vive le sessioni e disattiva i kill aggressivi allo sleep.
-- `DISABLE_DARKWAKE_FEATURES`: disabilita powernap/womp/ttyskeepawake/sleepservices durante lo sleep.
-- `FORCE_SLEEP_KILL_APPS`: lista di app da chiudere forzatamente allo sleep per evitare dark wake.
-- `WHITELIST`: app sempre protette dalla chiusura.
-- `HEAVY_APPS`: app chiuse allo sleep e riaperte al wake solo se su alimentazione.
-- `RESTORE_APPS`: app riaperte al wake e al login se non sono gia' in esecuzione.
-- `QUICK_LAUNCH_APPS`: app avviabili con un comando (`~/.quicklaunch`).
-- `RESTORE_TERMINAL_MAX`: numero massimo di tab ripristinate nel Terminale.
-- `LOG_ASSERTIONS`: aggiunge snapshot e top assertions ai log.
-- `TOGGLE_BLUETOOTH_ON_SLEEP`: spegne il Bluetooth allo sleep e lo riattiva al wake (richiede blueutil).
-- `AGGRESSIVE_POWER_PROFILE`: abilita disksleep e autopoweroff per uno sleep più profondo.
-- `SHOW_STANDBY_ALERT`: mostra una notifica prima dello sleep con promemoria su alimentazione/USB.
+Installazione o aggiornamento:
 
-## Restore Apps (Wake/Login)
-
-Il ripristino usa `~/.sleepmanager_restore`.
-
-- Se Terminale e' gia' aperto con almeno una finestra, non crea nuovi tab.
-- Se Terminale non ha finestre aperte, ripristina fino a `RESTORE_TERMINAL_MAX` directory.
-
-Esecuzione manuale:
-
-```bash
-~/.sleepmanager_restore --manual
-```
-
-## Uso da Terminale
-
-Installazione:
-
-```bash
+~~~~bash
+chmod +x install.sh
 ./install.sh
-```
+source ~/.zshrc
+~~~~
 
-Reinstall/Upgrade pulito:
+L'installer copia gli script nella home, crea il file di configurazione, configura `pmset`, riavvia `sleepwatcher`, installa il LaunchAgent di ripristino e preserva i valori già impostati durante gli upgrade.
 
-```bash
-./uninstall.sh && ./install.sh
-```
+Verifica:
 
-Upgrade consigliato (mantiene setup e liste correnti):
+~~~~bash
+./diagnostic.sh
+./test_config.sh
+cat ~/.sleepmanager.conf
+~~~~
 
-```bash
-./install.sh
-```
+Per aggiornare usa `./install.sh`. Per un normale upgrade non usare `uninstall.sh`: rimuove log e configurazione.
 
-Nota: `install.sh` crea un backup automatico prima della riscrittura:
-`~/.sleepmanager.conf.backup-YYYYmmdd-HHMMSS`
+## Uso quotidiano
 
-Log rapido:
+### Log
 
-```bash
+~~~~bash
 sleeplog
-sleeplog stats
-sleeplog stats today
-```
-
-Opzioni avanzate:
-
-```bash
 sleeplog last
 sleeplog today
 sleeplog yesterday
 sleeplog week
-sleeplog battery [last|today|yesterday|week]
-sleeplog apps [last|today|yesterday|week]
-sleeplog kills [last|today|yesterday|week]
-```
+sleeplog stats
+sleeplog stats today
+sleeplog battery today
+sleeplog battery week
+sleeplog apps week
+sleeplog kills week
+~~~~
 
-Verifica config:
+Significato:
 
-```bash
-./test_config.sh
-cat ~/.sleepmanager.conf
-```
+- `BATT`: percentuale rilevata.
+- `AWAKE`: minuti trascorsi dal wake precedente.
+- `USED`: consumo durante uso attivo.
+- `DELTA`: consumo durante sleep.
+- `apps`: conteggio raggruppato di kill, restore, postpone e preserve.
+- `kills`: conteggio delle app terminate, mantenendo il nome completo.
 
-Snapshot pmset (prima/dopo):
+Se una batteria aumenta durante il periodo osservato, il consumo viene mostrato come zero: la carica non è consumo.
 
-```bash
-pmset -g custom
-```
+### Quick launch
+
+~~~~bash
+quicklaunch
+~~~~
+
+Avvia tutte le app in `QUICK_LAUNCH_APPS`, saltando quelle già attive.
+
+### Ripristino app
+
+~~~~bash
+~/.sleepmanager_restore --manual
+~~~~
+
+Il ripristino automatico avviene al wake e al login. Le app già aperte non vengono riaperte. Le directory Terminal vengono ricreate solo se Terminal non ha finestre aperte, fino a `RESTORE_TERMINAL_MAX`.
+
+## Configurazione
+
+Modifica da terminale:
+
+~~~~bash
+sleepconf
+~~~~
+
+Modifica manuale:
+
+~~~~bash
+$EDITOR ~/.sleepmanager.conf
+~~~~
+
+Liste app usano `|`:
+
+~~~~bash
+WHITELIST="Music|Spotify|IINA"
+HEAVY_APPS="Google Chrome|Firefox"
+FORCE_SLEEP_KILL_APPS="WhatsApp|Google Chrome"
+RESTORE_APPS="Google Chrome|Visual Studio Code|Terminal"
+QUICK_LAUNCH_APPS="Safari|Notes"
+~~~~
+
+### Opzioni
+
+| Chiave | Funzione | Consiglio |
+| --- | --- | --- |
+| `ENABLE_NOTIFICATIONS` | Notifiche operative | `true` |
+| `SAFE_QUIT_MODE` | Chiusura controllata invece di kill immediato | `true` |
+| `CPU_THRESHOLD` | Soglia CPU per modalità aggressiva | `1.0` |
+| `STANDBY_DELAY_MINUTES` | Ritardo prima dello standby profondo | `10-15` |
+| `PRESERVE_APP_SESSIONS` | Mantiene vive le sessioni normali | `true` |
+| `DISABLE_DARKWAKE_FEATURES` | Disabilita servizi di dark wake | `true` |
+| `FORCE_SLEEP_KILL_APPS` | Kill sempre eseguito allo sleep | lista minima |
+| `WHITELIST` | App protette dalla chiusura aggressiva | app affidabili |
+| `HEAVY_APPS` | App pesanti gestite al ciclo sleep/wake | browser/editor |
+| `RESTORE_APPS` | App da riaprire al wake/login | app di lavoro |
+| `QUICK_LAUNCH_APPS` | App lanciate insieme | app frequenti |
+| `RESTORE_TERMINAL_MAX` | Numero massimo tab Terminal | `6` |
+| `LOG_ASSERTIONS` | Snapshot di assertion e log power | `true` |
+| `TOGGLE_BLUETOOTH_ON_SLEEP` | Bluetooth off allo sleep; richiede `blueutil` | `false` |
+| `AGGRESSIVE_POWER_PROFILE` | `disksleep` e `autopoweroff` aggressivi | `false` |
+| `SHOW_STANDBY_ALERT` | Promemoria su alimentazione/USB | `true` |
+
+Ordine pratico per le liste:
+
+1. Metti in `FORCE_SLEEP_KILL_APPS` solo app che impediscono davvero lo sleep.
+2. Usa `WHITELIST` per app da non chiudere nella modalità aggressiva.
+3. Usa `HEAVY_APPS` per browser/editor pesanti.
+4. Usa `RESTORE_APPS` per il tuo ambiente di lavoro.
+5. Usa `QUICK_LAUNCH_APPS` solo per app che vuoi aprire insieme.
+
+Il force-kill ha priorità sulla preservazione delle sessioni.
 
 ## SwiftBar
 
-Per la menubar:
+Installa SwiftBar, poi:
 
-```bash
+~~~~bash
+mkdir -p ~/SwiftBar-Plugins
 cp SleepManager.1m.sh ~/SwiftBar-Plugins/
-```
+~~~~
 
-Se usi un symlink e il menu non appare, preferisci il file reale nella cartella plugin.
+Il menu mostra:
 
-### Interfaccia SwiftBar (v4.9.15)
+- stato batteria e ultimo delta sleep;
+- azioni rapide: quick launch e sleep immediato;
+- una voce `Modifica` per ogni lista app;
+- report: ultima sessione, oggi, ieri, settimana, batteria, app e kill;
+- toggle per notifiche, chiusura sicura e preservazione sessioni;
+- editor completo, log e ripristino manuale.
 
-L'interfaccia e' stata riorganizzata con le seguenti sezioni:
+Se non appare:
 
-1. **⚡ AZIONI RAPIDE**: accesso immediato a funzioni frequenti
-   - `🚀 Avvia Tutte`: avvia tutte le app in `QUICK_LAUNCH_APPS`
-   - `💤 Sleep Ora`: metti subito in sleep
-   - `🔄 Refresh`: ricarica il menu
+~~~~bash
+ls -l ~/SwiftBar-Plugins/SleepManager.1m.sh
+bash -n ~/SwiftBar-Plugins/SleepManager.1m.sh
+~/SwiftBar-Plugins/SleepManager.1m.sh
+~~~~
 
-2. **🧩 Gestione Liste**: CRUD aggregato su tutte le liste
-   - Per ogni lista: aggiungi/reset/svuota da app aperte o da /Applications
+Preferire un file reale, non un symlink.
 
-3. **📋 Liste Dettagliate**: visualizza e rimuovi singole app
-   - Whitelist, Heavy Apps, Force Kill, Restore, Quick Launch
+## Diagnosi consumo batteria
 
-4. **⚙️ Impostazioni**: toggle rapidi e preset
+Prima raccogli dati:
 
-5. **🔧 Strumenti**: accesso a editor, log, restore, reinstalla
+~~~~bash
+pmset -g custom
+pmset -g assertions
+pmset -g log | tail -n 100
+sleeplog battery week
+sleeplog apps week
+sleeplog kills week
+~~~~
 
-Le impostazioni rapide includono ora:
+Cerca nel log:
 
-- toggle `PRESERVE_APP_SESSIONS`
-- preset `STANDBY_DELAY_MINUTES` a 10/15/30/60/120 minuti
+- `DarkWake` frequenti;
+- `Wake from` ripetuti;
+- `ExternalMedia`;
+- dispositivi USB, hub, dock o monitor;
+- assertion di rete;
+- wake da `UserActivity`, coperchio o alimentazione.
 
-### Quick Launch
+Test consigliato per una notte:
 
-Nuova lista per avviare piu' app con un solo comando:
+1. carica il Mac;
+2. scollega hub, dischi e dock;
+3. lascia `LOG_ASSERTIONS=true`;
+4. chiudi il coperchio;
+5. al mattino esegui `sleeplog battery today`;
+6. confronta con `pmset -g log`.
 
-```bash
-~/.quicklaunch
-# o
-quicklaunch  # (alias)
-```
+Per assenze lunghe, non lasciare periferiche USB collegate e usa `STANDBY_DELAY_MINUTES=10` o `15`. Cambia una sola impostazione alla volta.
 
-Configurazione in `~/.sleepmanager.conf`:
+## Diagnostica installazione
 
-```bash
-QUICK_LAUNCH_APPS="Safari|Notes|Music"
-```
+~~~~bash
+./diagnostic.sh
+~~~~
 
-Gestione da SwiftBar o terminale (`~/.sleepmanager_editor` opzione 9).
+Controlla:
 
-Se vuoi mantenere le app aperte dopo chiusura coperchio o spegnimento schermo, lascia `PRESERVE_APP_SESSIONS=true` e imposta `STANDBY_DELAY_MINUTES=10` o `15`.
+- file installati ed eseguibili;
+- valori di configurazione;
+- sintassi di `config_editor_auto`;
+- `tcpkeepalive` e `standby`;
+- servizio `sleepwatcher`;
+- file picker AppleScript.
 
-## Log Format
+Controlli manuali:
 
-I log principali sono in:
+~~~~bash
+brew services list | grep sleepwatcher
+launchctl list | grep com.sleepmanager.restore
+ls -l ~/.sleep ~/.wakeup ~/.sleeplog
+~~~~
 
-```bash
-~/.sleeplog_history
-```
+Full Disk Access e permessi Automation possono impedire hook, apertura app e lettura dati.
 
-Esempi di righe:
+## File creati
 
-```text
-ACTION: SLEEP | BATT: 78% | AWAKE: 43m | USED: -6%
-ACTION: WAKE | BATT: 72% | DELTA: -0% (SLEEP LOSS)
-```
-
-- `AWAKE`: minuti di uso attivo tra wake e sleep.
-- `USED`: batteria consumata durante uso attivo.
-- `DELTA`: perdita reale in standby.
-
-Nelle viste `sleeplog` default e `stats`, se presenti assertions bloccanti, appare un banner di warning.
-
-## Legenda Colori (SwiftBar)
-
-- Verde: `DELTA SLEEP 0%` (sleep perfetto, nessuna perdita).
-- Blu: perdita in standby rilevata (es. `-3%`).
-- Ciano: blocco "Ultimi Eventi".
-- Arancione: heavy apps.
-- Verde chiaro: whitelist protette.
-- Grigio: valori informativi o non disponibili.
-
-## Percorsi Installati
-
-| Scopo | Path |
+| Scopo | Percorso |
 | --- | --- |
 | Hook sleep | `~/.sleep` |
 | Hook wake | `~/.wakeup` |
 | Viewer log | `~/.sleeplog` |
-| Editor config | `~/.sleepmanager_editor` |
-| Helper editor | `~/.config_editor_auto` |
-| Restore script | `~/.sleepmanager_restore` |
+| Editor | `~/.sleepmanager_editor` |
+| Editor liste | `~/.config_editor_auto` |
+| Restore | `~/.sleepmanager_restore` |
+| Quick launch | `~/.quicklaunch` |
 | Config | `~/.sleepmanager.conf` |
-| Storico log | `~/.sleeplog_history` |
-| Batteria sleep | `~/.sleep_batt_start` |
+| Storico | `~/.sleeplog_history` |
+| Diagnostica | `~/.sleepmanager_diagnose` |
+| Snapshot batteria | `~/.sleep_batt_start` |
 | Info wake | `~/.wake_batt_info` |
-| Lista kill | `~/.sleep_killed_apps` |
-| Cache dirs | `~/.sleepmanager_terminal_dirs` |
+| App killate | `~/.sleep_killed_apps` |
+| Directory Terminal | `~/.sleepmanager_terminal_dirs` |
 | LaunchAgent | `~/Library/LaunchAgents/com.sleepmanager.restore.plist` |
 
 ## FAQ
 
-**La menubar e' vuota**
+### La menubar è vuota
 
-- Usa un file reale (no symlink) dentro `~/SwiftBar-Plugins`.
-- Esegui lo script manualmente per vedere eventuali errori:
-  ```bash
-  ~/SwiftBar-Plugins/SleepManager.1m.sh
-  ```
+Controlla file, permessi, sintassi e avvio manuale:
 
-**Le app non si ripristinano**
+~~~~bash
+ls -l ~/SwiftBar-Plugins/SleepManager.1m.sh
+bash -n ~/SwiftBar-Plugins/SleepManager.1m.sh
+~/SwiftBar-Plugins/SleepManager.1m.sh
+~~~~
 
-- Verifica `RESTORE_APPS` in `~/.sleepmanager.conf`.
-- Controlla il LaunchAgent:
-  ```bash
-  launchctl list | grep com.sleepmanager.restore
-  ```
+### I log non si aggiornano
 
-**Mission Control e gesture mouse non funzionano dopo wake**
+Verifica `sleepwatcher`, Full Disk Access, eseguibilità degli hook e:
 
-- Rimosso il blocco/restart dei driver Logi Options Plus che causava perdita di stato accessibility.
-- Aggiunto riavvio del Dock al wake per ripristinare correttamente le funzionalità UI.
+~~~~bash
+tail -n 100 ~/.sleeplog_history
+~~~~
 
-**Voglio mantenere le sessioni quando chiudo il coperchio o spengo lo schermo**
+### Le app non si ripristinano
 
-- Lascia `PRESERVE_APP_SESSIONS=true`.
-- Imposta `STANDBY_DELAY_MINUTES=10` o `15`.
-- Se vuoi tornare al comportamento aggressivo, imposta `PRESERVE_APP_SESSIONS=false`.
+Verifica `RESTORE_APPS`, LaunchAgent e permessi Automation. Prova:
 
-**Video full-screen non funziona (YouTube/Netflix)**
+~~~~bash
+~/.sleepmanager_restore --manual
+~~~~
 
-**I log non si aggiornano**
+### Il Mac perde batteria chiuso
 
-- Controlla permessi Full Disk Access a `sleepwatcher`.
-- Verifica che `~/.sleep` e `~/.wakeup` siano eseguibili.
+Controlla `pmset -g log`, assertion e dispositivi esterni. Non assumere che il Mac sia rimasto sempre in deep sleep: `DarkWake` e wake ripetuti possono consumare batteria.
 
-**Ho reinstallato e ho perso la configurazione**
+### Ho perso la configurazione dopo un aggiornamento
 
-- Verifica l'eventuale backup automatico più recente:
-  ```bash
-  ls -t ~/.sleepmanager.conf.backup-* | head -1
-  ```
-- Da questa versione, `./install.sh` preserva i valori esistenti e usa default solo per chiavi mancanti.
+Cerca il backup:
 
-## Troubleshooting
+~~~~bash
+ls -t ~/.sleepmanager.conf.backup-* | head -1
+~~~~
 
-- Se i log non si aggiornano, verifica i permessi di `sleepwatcher`.
-- Se le app non si ripristinano, controlla `RESTORE_APPS` e il LaunchAgent.
-
-LaunchAgent:
-
-```bash
-launchctl list | grep com.sleepmanager.restore
-```
+L'installer crea un backup prima di aggiornare il file.
 
 ## Disinstallazione
 
-```bash
+~~~~bash
 ./uninstall.sh
-```
+~~~~
 
-## Note su Sicurezza e Permessi
+La disinstallazione ferma `sleepwatcher`, rimuove hook, configurazione, log e LaunchAgent, quindi applica il profilo power predefinito dallo script. Salva prima i file che vuoi conservare.
 
-Concedi Full Disk Access a `sleepwatcher` per garantire l'accesso ai log e ai trigger di sistema.
+## Sviluppo
+
+Controllo sintassi:
+
+~~~~bash
+for file in sleep wakeup sleeplog SleepManager.1m.sh install.sh diagnostic.sh config_editor config_editor_auto quicklaunch restore_apps.sh test_config.sh; do
+    bash -n "$file" || exit 1
+done
+~~~~
+
+Poi:
+
+~~~~bash
+./test_config.sh
+git diff --check
+~~~~
+
+I test sintattici non sostituiscono un ciclo reale sleep/wake su macOS.

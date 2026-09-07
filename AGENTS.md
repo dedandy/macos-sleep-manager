@@ -5,7 +5,8 @@
 - Installer and tooling scripts live alongside the core scripts: `install.sh`, `uninstall.sh`, `diagnostic.sh`, and `test_config.sh`.
 - Configuration lives in `config.template` and is written at runtime to `~/.sleepmanager.conf` by `install.sh`.
 - Interactive configuration helpers are `config_editor` and `config_editor_auto`.
-- Documentation is in `readme.md` and `help.md`.
+- `readme.md` is the primary user guide, including installation, `How to use`, configuration, SwiftBar, troubleshooting, and development checks.
+- `help.md` is the Italian operational manual and must stay aligned with current commands and menu behavior.
 
 ## Build, Test, and Development Commands
 - `brew install sleepwatcher` installs the dependency used to trigger sleep/wake hooks.
@@ -15,8 +16,8 @@
 - `./uninstall.sh` restores system settings and removes installed components.
 - `./diagnostic.sh` collects runtime state for troubleshooting.
 - `./test_config.sh` validates `~/.sleepmanager.conf` parsing and variables.
-- `./sleeplog` (or `sleeplog` after install) shows recent sleep/wake summaries; `sleeplog stats` prints aggregates.
-- `sleeplog stats today` limits the stats output to the current date.
+- `./sleeplog` (or `sleeplog` after install) shows recent sleep/wake summaries; `sleeplog stats [scope]` prints aggregates.
+- `sleeplog stats today` limits the stats output to the current date; `battery`, `apps`, and `kills` accept `last|today|yesterday|week`.
 - `./config_editor` opens the interactive config editor; after install use `sleepconf`.
 - `./SleepManager.1m.sh` is a minute-based monitor; run manually when validating scheduled behavior.
 - `cat ~/.sleepmanager.conf` verifies the active config values written by the installer.
