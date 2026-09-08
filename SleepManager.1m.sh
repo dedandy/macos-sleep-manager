@@ -1,6 +1,6 @@
 #!/bin/bash
 # <bitbar.title>macOS Sleep Manager Monitor</bitbar.title>
-# <bitbar.version>v4.9.27</bitbar.version>
+# <bitbar.version>v4.9.28</bitbar.version>
 # <swiftbar.hideAbout>true</swiftbar.hideAbout>
 # <swiftbar.hideRunInTerminal>true</swiftbar.hideRunInTerminal>
 # <swiftbar.hideSwiftBar>true</swiftbar.hideSwiftBar>
@@ -9,7 +9,6 @@ CONF_FILE="$HOME/.sleepmanager.conf"
 LOG_FILE="$HOME/.sleeplog_history"
 EDITOR_AUTO="$HOME/.config_editor_auto"
 RESTORE_SCRIPT="$HOME/.sleepmanager_restore"
-VERSION_FILE="$HOME/.sleepmanager_version"
 QUICKLAUNCH="$HOME/.quicklaunch"
 
 if [ ! -f "$CONF_FILE" ]; then
@@ -20,7 +19,7 @@ if [ ! -f "$CONF_FILE" ]; then
 fi
 
 source "$CONF_FILE"
-[ -f "$VERSION_FILE" ] && source "$VERSION_FILE"
+SM_VERSION=$(sed -n 's/^# <bitbar.version>v\([^<]*\)<\/bitbar.version>/\1/p' "$0")
 
 # Conta elementi lista separati da barra verticale.
 count_apps() {

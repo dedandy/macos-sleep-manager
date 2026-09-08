@@ -1,5 +1,5 @@
 #!/bin/bash
-# install.sh v4.9.27 - Auto-configuration con scrittura diretta
+# install.sh v4.9.28 - Auto-configuration con scrittura diretta
 CYAN='\033[1;36m'; BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 CONF_FILE="$HOME/.sleepmanager.conf"
 VERSION_FILE="$HOME/.sleepmanager_version"
@@ -19,6 +19,15 @@ cp quicklaunch "$HOME/.quicklaunch"
 chmod +x "$HOME/.sleep" "$HOME/.wakeup" "$HOME/.sleeplog" \
          "$HOME/.sleepmanager_restore" "$HOME/.sleepmanager_editor" "$HOME/.config_editor_auto" "$VERSION_FILE" \
          "$HOME/.sleepmanager_install" "$HOME/.quicklaunch"
+
+# Aggiorna copie SwiftBar già installate mantenendo versione coerente.
+for SWIFTBAR_DIR in "$HOME/SwiftBar-Plugins" "$HOME/Library/Application Support/SwiftBar"; do
+    if [ -d "$SWIFTBAR_DIR" ]; then
+        cp SleepManager.1m.sh "$SWIFTBAR_DIR/SleepManager.1m.sh"
+        chmod +x "$SWIFTBAR_DIR/SleepManager.1m.sh"
+        echo -e "${GREEN}✓${NC} SwiftBar aggiornato: $SWIFTBAR_DIR/SleepManager.1m.sh"
+    fi
+done
 
 echo -e "${BLUE}[2/4] Scansione applicazioni...${NC}"
 
@@ -75,7 +84,7 @@ SHOW_STANDBY_ALERT_VAL="${SHOW_STANDBY_ALERT:-true}"
 
 # SCRITTURA DIRETTA del file config (non usa sed)
 cat > "$CONF_FILE" << EOF
-# macOS Sleep Manager v4.9.27 - Auto-Generated Config
+# macOS Sleep Manager v4.9.28 - Auto-Generated Config
 # Generato il: $(date '+%Y-%m-%d %H:%M:%S')
 
 # --- IMPOSTAZIONI GENERALI ---

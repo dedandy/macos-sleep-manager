@@ -21,6 +21,7 @@
 - `./config_editor` opens the interactive config editor; after install use `sleepconf`.
 - `./SleepManager.1m.sh` is a minute-based monitor; run manually when validating scheduled behavior.
 - `cat ~/.sleepmanager.conf` verifies the active config values written by the installer.
+- `./scripts/setup-git-hooks.sh` enables repository hooks; version bump runs in pre-commit only when staged changes exist, never during push.
 
 ## Coding Style & Naming Conventions
 - Language: Bash (`#!/bin/bash`) with 4-space indentation and POSIX-friendly quoting.
@@ -44,6 +45,7 @@
 ## Commit & Pull Request Guidelines
 - Commit messages follow a simple convention like `feat: ...` in Italian (see `git log`).
 - Prefer small, focused commits (one feature or fix per commit).
+- Keep generated version headers in the same functional commit; do not create version-only commits from push hooks.
 - PRs should include: a short summary, how to test (commands run), and any macOS version notes.
 
 ## Security & Configuration Tips

@@ -36,6 +36,8 @@ source ~/.zshrc
 
 L'installer copia gli script nella home, crea il file di configurazione, configura `pmset`, riavvia `sleepwatcher`, installa il LaunchAgent di ripristino e preserva i valori già impostati durante gli upgrade.
 
+Se trova una cartella plugin SwiftBar supportata, aggiorna anche `SleepManager.1m.sh`. Versione mostrata dal menu e `~/.sleepmanager_version` restano così coerenti.
+
 Verifica:
 
 ~~~~bash
@@ -303,6 +305,16 @@ L'installer crea un backup prima di aggiornare il file.
 La disinstallazione ferma `sleepwatcher`, rimuove hook, configurazione, log e LaunchAgent, quindi applica il profilo power predefinito dallo script. Salva prima i file che vuoi conservare.
 
 ## Sviluppo
+
+### Gestione versione
+
+Abilita hook una volta per clone:
+
+~~~~bash
+./scripts/setup-git-hooks.sh
+~~~~
+
+Il hook pre-commit aumenta patch version solo davanti a modifiche staged e inserisce aggiornamento nello stesso commit. `git push` non modifica file e non crea commit. Per preservare intenzionalmente versione corrente usa `SKIP_VERSION_BUMP=1` sul commit.
 
 Controllo sintassi:
 

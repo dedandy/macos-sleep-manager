@@ -1,3 +1,30 @@
 #!/bin/bash
-# No-op: version bump happens on pre-push
-exit 0
+set -euo pipefail
+
+[ "${SKIP_VERSION_BUMP:-0}" = "1" ] && exit 0
+git diff --cached --quiet -- && exit 0
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+[ -n "$REPO_ROOT" ] || exit 0
+
+# Evita un secondo bump quando un commit viene ritentato dopo il hook.
+HEAD_VERSION=$(git show HEAD:version.sh 2>/dev/null | sed -n 's/^SM_VERSION="\([^"]*\)"/\1/p' || true)
+INDEX_VERSION=$(git show :version.sh 2>/dev/null | sed -n 's/^SM_VERSION="\([^"]*\)"/\1/p' || true)
+if [ -n "$INDEX_VERSION" ] && [ "$INDEX_VERSION" != "$HEAD_VERSION" ]; then
+    exit 0
+fi
+
+"$REPO_ROOT/scripts/bump-version.sh" patch
+
+# Include versione e intestazioni sincronizzate nello stesso commit funzionale.
+git add "$REPO_ROOT/version.sh" \
+    "$REPO_ROOT/sleep" \
+    "$REPO_ROOT/wakeup" \
+    "$REPO_ROOT/sleeplog" \
+    "$REPO_ROOT/install.sh" \
+    "$REPO_ROOT/uninstall.sh" \
+    "$REPO_ROOT/MASTER_INSTALL.sh" \
+    "$REPO_ROOT/SleepManager.1m.sh" \
+    "$REPO_ROOT/config_editor" \
+    "$REPO_ROOT/config_editor_auto" \
+    "$REPO_ROOT/config.template"

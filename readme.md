@@ -38,6 +38,8 @@ source ~/.zshrc
 
 The installer copies hooks and utilities, detects common applications, creates or updates `~/.sleepmanager.conf`, preserves existing values during upgrades, creates a timestamped backup, configures `pmset` and `sleepwatcher`, installs the restore LaunchAgent, and adds shell aliases.
 
+If a supported SwiftBar plugin directory already exists, the installer also refreshes `SleepManager.1m.sh`. This keeps plugin metadata and `~/.sleepmanager_version` aligned.
+
 Verify installation:
 
 ~~~~bash
@@ -255,6 +257,10 @@ Run `./install.sh` again. Existing values are preserved and a timestamped backup
 Back up `~/.sleepmanager.conf` and `~/.sleeplog_history` first if you need them later.
 
 ## Development checks
+
+### Version lifecycle
+
+Run `./scripts/setup-git-hooks.sh` once per clone. The pre-commit hook increases patch version only when a commit contains staged changes, then includes synchronized version headers in the same commit. `git push` never changes files or creates commits. Use `SKIP_VERSION_BUMP=1` only when a commit must intentionally preserve current version.
 
 ~~~~bash
 for file in sleep wakeup sleeplog SleepManager.1m.sh install.sh diagnostic.sh config_editor config_editor_auto quicklaunch restore_apps.sh test_config.sh; do

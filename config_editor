@@ -177,7 +177,7 @@ while true; do
     load_conf
     clear
     echo -e "${CYAN}═══════════════════════════════════════${NC}"
-    echo -e "${CYAN}  macOS SLEEP MANAGER EDITOR v4.9.27.26.25.24.23.22.21.20.19.18.17.16.15${NC}"
+    echo -e "${CYAN}  macOS SLEEP MANAGER EDITOR v4.9.28.27.26.25.24.23.22.21.20.19.18.17.16.15${NC}"
     echo -e "${CYAN}═══════════════════════════════════════${NC}\n"
     
     # Stato notifiche
